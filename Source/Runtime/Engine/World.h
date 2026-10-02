@@ -32,8 +32,6 @@ struct FRenderStats
 	void Reset() { *this = FRenderStats(); }
 };
 
-
-
 class UWorld : public UObject
 {
 	DECLARE_CLASS(UWorld, UObject)
@@ -90,6 +88,7 @@ public:
 	FTickTaskManager& GetTickTaskManager() { return TickTaskManager; }
 
 	const FRenderStats& GetRenderStats() const { return RenderStats; }
+
 private:
 	struct alignas(64) FGatherChunk
 	{
