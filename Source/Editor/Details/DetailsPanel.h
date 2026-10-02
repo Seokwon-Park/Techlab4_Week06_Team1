@@ -7,6 +7,8 @@
 
 struct FTransform;
 
+using DetailsSelectionCallback = std::function<void(USceneComponent*)>;
+
 class FDetailsPanel : public IEditorPanel
 {
 public:
@@ -16,9 +18,17 @@ public:
 	bool Init() override;
 	void Tick(float DeltaTime)override;
 	void OnRender() override;
+	void SelectComponent(UActorComponent* Component);
 	const char* GetPanelName() const override { return "Details"; }
 
-	void SetTarget(USceneComponent* InTargetOrNull) { Target = InTargetOrNull; }
+	void SetTarget(AActor* InTargetActor) 
+	{ 
+		TargetActor = InTargetActor;
+		TargetComponent = InTargetActor ? InTargetActor->GetRootComponent() : nullptr;
+	}
+	void SetTargetComponent(UActorComponent* InTargetComponent) { TargetComponent = InTargetComponent; }
+
+	void SetSelectionCallback(DetailsSelectionCallback InCallback) { Callback = InCallback; }
 
 	void SetWorld(UWorld* InWorld) { World = InWorld; }
 
@@ -26,7 +36,10 @@ public:
 
 private:
 	UWorld* World = nullptr;
-	USceneComponent* Target = nullptr;
 	ImFont* CustomFont = nullptr;
+
+	AActor* TargetActor = nullptr;
+	UActorComponent* TargetComponent = nullptr;
+	DetailsSelectionCallback Callback;
 };
 

@@ -154,11 +154,13 @@ void UBenchmarkEngine::InitEditorTools()
 	EditorUI->SetOpenSceneCallback([this]()
 		{
 			OutlinerPanel->SelectActor(nullptr);
+			DetailsPanel->SelectComponent(nullptr);
 			FEditorFileUtils::LoadScene(World);
 		});
 	EditorUI->SetNewSceneCallback([this]()
 		{
 			OutlinerPanel->SelectActor(nullptr);
+			DetailsPanel->SelectComponent(nullptr);
 			FEditorFileUtils::NewScene(World);
 		});
 
@@ -176,6 +178,7 @@ void UBenchmarkEngine::InitEditorTools()
 	OutlinerPanel->SetWorld(World);
 	OutlinerPanel->SetSelectionCallback(
 		[this](UPrimitiveComponent* Primitive) { SelectPrimitive(Primitive); });
+
 	OutlinerPanel->SetDeleteActorCallback(
 		[this](AActor* Actor)
 		{
@@ -193,7 +196,7 @@ void UBenchmarkEngine::SelectPrimitive(UPrimitiveComponent* Primitive)
 {
 	Gizmo->SetTarget(Primitive);
 	Outline->SetTarget(Primitive);
-	DetailsPanel->SetTarget(Primitive);
+	DetailsPanel->SetTarget(Primitive ? Primitive->GetOwner() : nullptr);
 }
 
 UPrimitiveComponent* UBenchmarkEngine::GetSelectedPrimitive() const

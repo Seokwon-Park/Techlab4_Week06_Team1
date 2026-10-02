@@ -146,7 +146,14 @@ bool UEditorEngine::Init()
 		{
 			Gizmo->SetTarget(Primitive);
 			Outline->SetTarget(Primitive);
-			DetailsPanel->SetTarget(Primitive);
+			DetailsPanel->SetTarget(Primitive ? Primitive->GetOwner() : nullptr);
+		}
+	);
+
+	DetailsPanel->SetSelectionCallback(
+		[this](USceneComponent* SceneComponent)
+		{
+			Gizmo->SetTarget(SceneComponent);
 		}
 	);
 
@@ -545,6 +552,7 @@ void UEditorEngine::DeleteActor(AActor* Actor)
 		return;
 
 	OutlinerPanel->SelectActor(nullptr);
+	DetailsPanel->SelectComponent(nullptr);
 
 	Actor->Destroy();
 }

@@ -24,6 +24,7 @@ public:
 		MarkTransformDirty();
 	}
 
+
 	const FRotator& GetRelativeRotation() const { return Transform.Rotation; }
 	void SetRelativeRotation(const FRotator& InRotation) 
 	{

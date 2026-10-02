@@ -6,12 +6,16 @@
 #include "Component/PrimitiveComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Component/TextRenderComponent.h"
+#include "Component/ParticleSubUVComponent.h"
+#include "Component/SpotLightComponent.h"
 #include "Asset/AssetManager.h"
 #include "Render/Material.h"
 #include "Render/Texture2D.h"
 #include "Text/Font.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/Actor.h"
+#include "Core/EngineLog.h"
+
 
 namespace
 {
@@ -605,10 +609,23 @@ namespace
 			FTransform* Value = static_cast<FTransform*>(ValuePtr);
 
 			ImGui::NewLine();
-			DrawVector3Controller("Location", Value->Location.V, 0.0f, 55.0f);
-			DrawRotatorAsXYZ("Rotation", Value->Rotation);
-			DrawVector3Controller("Scale", Value->Scale.V, 1.0f, 55.0f);
-			break;
+			
+			FTransform Transform = *Value;
+			bool bChange = false;
+
+			bChange |= DrawVector3Controller("Location", Transform.Location.V, 0.0f, 55.0f);
+			bChange |= DrawRotatorAsXYZ("Rotation", Transform.Rotation);
+			bChange |= DrawVector3Controller("Scale", Transform.Scale.V, 1.0f, 55.0f);
+
+
+			if (bChange)
+			{
+				if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+				{
+					SceneComponent->SetTransform(Transform);
+				}
+			}
+
 		}
 		case EPropertyType::Object:
 		{
@@ -668,6 +685,83 @@ namespace
 			ImGui::PopID();
 		}
 	}
+
+	void DrawActorHeader(AActor* Actor, UActorComponent*& OutSelectedComponent)
+	{
+		if (!Actor) { return; }
+
+		static char ComponentNameInputBuf[256] = {};
+
+		ImGui::Text("Actor: %s", Actor->GetName().c_str());
+		ImGui::Text("UUID: %u", Actor->GetUUID());
+
+		if (ImGui::Button("Add Component"))
+		{
+			ImGui::OpenPopup("AddComponentPopup");
+		}
+
+		if (ImGui::BeginPopup("AddComponentPopup"))
+		{
+			ImGui::Text("Component Name:");
+			ImGui::SameLine();
+			ImGui::InputText("##Component Name", ComponentNameInputBuf, sizeof(ComponentNameInputBuf));
+			if (ImGui::MenuItem("StaticMesh Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UStaticMeshComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("Text Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UTextRenderComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("ParticleSubUV Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UParticleSubUVComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("SpotLight Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(USpotLightComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndPopup();
+		}
+	}
+
+	void DrawCompoenetList(AActor* SelectedActor, UActorComponent*& OutSelectedComponent)
+	{
+		if (!SelectedActor) { return; }
+		const TArray<UActorComponent*>& Components = SelectedActor->GetComponents();
+		USceneComponent* Root = SelectedActor->GetRootComponent();
+		
+		if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			for (UActorComponent* Component : SelectedActor->GetComponents())
+			{
+				const bool bSelected = (Component == OutSelectedComponent);
+
+				FString Label = Component->GetClass()->Name;
+				if (Component == Root)
+				{
+					Label += " (Root)";
+				}
+
+				ImGui::PushID(Component);
+				if (ImGui::Selectable(Label.c_str(), bSelected))
+				{
+					OutSelectedComponent = Component;
+				}
+				ImGui::SameLine();
+				ImGui::TextDisabled("(%s)", Component->GetClass()->Name.c_str());
+				ImGui::PopID();
+			}
+		}
+	}
 }
 
 bool FDetailsPanel::Init()
@@ -697,35 +791,51 @@ void FDetailsPanel::OnRender()
 
 	ImGui::Begin("Details");
 
-	if (Target)
+	if (TargetActor)
 	{
-		// 액터 -> 컴포넌트 순으로, 클래스별 프로퍼티 표시
-		DrawProperties(Target->GetOwner(), CustomFont);
+		DrawActorHeader(TargetActor, TargetComponent);
+		DrawCompoenetList(TargetActor, TargetComponent);
+		ImGui::Separator();
 
-		// 선택된 컴포넌트뿐 아니라 같은 액터의 다른 컴포넌트도 보여준다.
-		// (예: 라이트는 빌보드를 클릭해서 고르지만 수치는 SpotLight 쪽에 있다)
-		if (AActor* Owner = Target->GetOwner())
+		if (TargetComponent)
 		{
-			for (UActorComponent* Component : Owner->GetComponents())
+			ImGui::PushID(TargetComponent);
+			ImGui::SeparatorText("Component Properties");
+			DrawProperties(TargetComponent, CustomFont);
+			SelectComponent(TargetComponent);
+			if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(TargetComponent))
 			{
-				// 같은 클래스를 상속한 컴포넌트가 여럿이면 헤더 ID가 겹치므로 분리한다
-				ImGui::PushID(Component);
-				DrawProperties(Component, CustomFont);
-				if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component))
-				{
-					DrawMaterialSlots(MeshComponent);
-				}
-				ImGui::PopID();
+				DrawMaterialSlots(MeshComponent);
 			}
-		}
-		else
-		{
-			DrawProperties(Target, CustomFont);
+			ImGui::PopID();
 		}
 	}
-
 	ImGui::End();
 }
+
+
+void FDetailsPanel::SelectComponent(UActorComponent* Component)
+{
+	if (!Component)
+	{
+		TargetComponent = nullptr;
+
+		if (Callback)
+			Callback(nullptr);
+
+		return;
+	}
+
+	TargetComponent = Component;
+
+	HTR_LOG(Info, "{} UUID {} is selected", TargetComponent->GetName(), TargetComponent->GetUUID());
+
+	USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
+
+	if (Callback)
+		Callback(SceneComponent);
+}
+
 
 FDetailsPanel::~FDetailsPanel()
 {

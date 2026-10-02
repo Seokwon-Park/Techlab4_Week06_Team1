@@ -4,6 +4,7 @@
 #include "Engine/Level.h"
 #include "ObjectSystem/ObjectFactory.h"
 #include "Component/SceneComponent.h"
+#include "Component/ParticleSubUVComponent.h"
 
 AActor::AActor()
 {
@@ -134,4 +135,40 @@ bool AActor::Destroy()
         return false;
 
     return World->DestroyActor(this);
+}
+
+UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
+{
+	if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
+	{
+		return nullptr;
+	}
+
+	UActorComponent* NewComponent 
+        = CastChecked<UActorComponent>(FObjectFactory::ConstructObject(ComponentClass, this, Name));
+	NewComponent->SetOwner(this);
+	Components.Add(NewComponent);
+
+	if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(NewComponent))
+	{
+        World->GetScene().AddPrimitive(Primitive);
+	}
+    if (UParticleSubUVComponent* ParticleSubUV = Cast<UParticleSubUVComponent>(NewComponent))
+    {
+        ParticleSubUV->BeginPlay();
+		RegisterAllActorTickFunctions(true);
+    }
+
+	USceneComponent* SceneComponent = Cast<USceneComponent>(NewComponent);
+	if (!RootComponent)
+	{
+		SetRootComponent(SceneComponent);
+	}
+    else
+    {
+		SceneComponent->SetupAttachment(RootComponent);
+    }
+
+
+	return NewComponent;
 }
