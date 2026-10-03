@@ -1,13 +1,34 @@
 #pragma once
 
-#include "ObjectSystem/Object.h"
-#include "ObjectSystem/Class.h"
+#include "UObject/Object.h"
+#include "UObject/Class.h"
+
+#include "Containers/IndirectArray.h"
 
 #include "Engine/World.h"
+#include "EngineTypes.h"
 
-enum class EWorldType
+struct FWorldContext
 {
+	EWorldType WorldType;
+	FName ContextHandle;
 
+	void SetCurrentWorld(UWorld* World);
+
+	inline UWorld* World() const
+	{
+		return ThisCurrentWorld;
+	}
+
+	FWorldContext()
+		: WorldType(EWorldType::None)
+		, ContextHandle(NAME_None)
+		, ThisCurrentWorld(nullptr)
+	{
+	}
+
+private:
+	UWorld* ThisCurrentWorld = nullptr;
 };
 
 class FEngineLoop;
@@ -44,12 +65,18 @@ public:
 	// UObject 일괄 정리와 GPU 자원 해제 전에 호출된다.
 	virtual void PreExit() {};
 
-	UWorld* GetWorld() const { return World; }
+	//UWorld* GetWorld() const { return World; }
+
+	FWorldContext& CreateNewWorldContext(EWorldType WorldType);
+	FWorldContext* GetWorldContextFromWorld(const UWorld* InWorld);
+	void DestroyWorldContext(UWorld* InWorld);
 
 protected:
 	FEngineLoop& GetEngineLoop() const { return *EngineLoop; }
 
-	UWorld* World = nullptr;
+	TIndirectArray<FWorldContext> WorldList;
+	//UWorld* World = nullptr;
+	int32 NextWorldContextHandle = 0;
 private:
 	FEngineLoop* EngineLoop = nullptr;
 };

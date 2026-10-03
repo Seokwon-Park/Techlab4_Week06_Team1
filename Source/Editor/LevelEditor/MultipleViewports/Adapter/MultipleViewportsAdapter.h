@@ -3,13 +3,13 @@
 #include "Editor/LevelEditor/MultipleViewports/Adapter/MultipleViewportsAdapterTypes.h"
 
 #include "Collision/Ray.h"
-#include "Container/Queue.h"
+#include "Containers/Queue.h"
 #include "Math/Matrix.h"
 #include "Render/RenderPacket.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
 
-#include "Container/Map.h"
-#include "Container/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Array.h"
 
 class FOutlinerPanel;
 class UPrimitiveComponent;

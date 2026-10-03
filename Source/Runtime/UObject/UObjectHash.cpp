@@ -1,8 +1,8 @@
 #include "EnginePCH.h"
 #include "UObjectHash.h"
 
-#include "ObjectSystem/Object.h"
-#include "ObjectSystem/Class.h"
+#include "UObject/Object.h"
+#include "UObject/Class.h"
 
 //클래스에 해당하는 UObject들의 리스트(O(1)에 바로 가져옴)
 static TMap<const UClass*, TSet<UObject*>>& GetClassToObjects() { static TMap<const UClass*, TSet<UObject*>> M; return M; }

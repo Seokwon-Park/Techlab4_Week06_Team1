@@ -3,9 +3,9 @@
 #include "RenderCommand.h"
 
 #include "Material.h"
-#include "ObjectSystem/ObjectFactory.h"
 
 #include "Asset/AssetManager.h"
+#include "UObject/UObjectGlobals.h"
 #include "Serialization/TypeSerializer.h"
 
 namespace
@@ -28,8 +28,8 @@ UMaterial* UMaterial::CreateInstance(const UMaterial* Source)
 		return nullptr;
 	}
 
-	UMaterial* Instance = FObjectFactory::ConstructObject<UMaterial>();
-
+	UMaterial* Instance = NewObject<UMaterial>();
+	
 	Instance->ParamLayout = Source->ParamLayout;
 	Instance->Shader = Source->Shader;
 	Instance->Textures = Source->Textures;

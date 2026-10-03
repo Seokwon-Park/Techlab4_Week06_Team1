@@ -214,16 +214,16 @@ void FRenderer::RenderQueueSorting(FRenderQueue& InQueue, const FMatrix& ViewPro
 			SortEntries.Add({ MakeSortKey(P), i });
 		}
 
-		// ② 16B 항목만 정렬
+		// 16B 항목만 정렬
 		std::sort(SortEntries.begin(), SortEntries.end(),
 			[](const FSortEntry& A, const FSortEntry& B) { return A.Key < B.Key; });
 
-		// ③ 반투명 시작 위치 = 최상위 비트가 처음 1인 곳
+		// 반투명 시작 위치 = 최상위 비트가 처음 1인 곳
 		FirstTranslucentIndex = 0;
 		while (FirstTranslucentIndex < SortEntries.Num() && !(SortEntries[FirstTranslucentIndex].Key >> 63))
 			++FirstTranslucentIndex;
 
-		// ④ 스태틱 메시 묶음: 빈 묶음을 빼고 키 순으로 정렬한다. 조각마다 같은 키 묶음이 있으므로 정렬하면 서로 붙는다.
+		// 스태틱 메시 묶음: 빈 묶음을 빼고 키 순으로 정렬한다. 조각마다 같은 키 묶음이 있으므로 정렬하면 서로 붙는다.
 		std::erase_if(StaticGroups, [](const FStaticDrawGroup* Group) { return Group->Items.empty(); });
 		std::sort(StaticGroups.begin(), StaticGroups.end(),
 			[](const FStaticDrawGroup* A, const FStaticDrawGroup* B) { return MakeGroupKey(*A) < MakeGroupKey(*B); });

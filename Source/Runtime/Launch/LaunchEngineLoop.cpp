@@ -6,9 +6,8 @@
 #include "Core/Window.h"
 #include "Core/Windows/WindowsPlatformTime.h"
 #include "Input/InputSystem.h"
-#include "ObjectSystem/Casts.h"
-#include "ObjectSystem/Class.h"
-#include "ObjectSystem/ObjectFactory.h"
+#include "UObject/Casts.h"
+#include "UObject/Class.h"
 #include "Render/RenderCommand.h"
 #include "Render/RenderDevice.h"
 #include "Render/RenderResourceManager.h"
@@ -18,6 +17,8 @@
 #include "Core/SplashScreen.h"
 #include "Core/Stats/LightweightStats.h"
 #include "Core/Async/TaskPool.h"
+
+#include "UObject/UObjectGlobals.h"
 
 namespace
 {
@@ -46,7 +47,7 @@ bool FEngineLoop::PreInit(HINSTANCE hInstance, UClass* EngineClass)
 		return false;
 	}
 
-	GEngine = Cast<UEngine>(FObjectFactory::ConstructObject(EngineClass));
+	GEngine = NewObject<UEngine>(nullptr, EngineClass);
 	if (!GEngine)
 	{
 		return false;
