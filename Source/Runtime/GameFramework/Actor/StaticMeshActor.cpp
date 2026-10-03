@@ -2,7 +2,6 @@
 #include "StaticMeshActor.h"
 
 #include "Component/PrimitiveComponent.h"
-#include "ObjectSystem/ObjectFactory.h"
 #include "Asset/AssetManager.h"
 
 AStaticMeshActor::AStaticMeshActor()

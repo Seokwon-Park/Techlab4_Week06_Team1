@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ObjectSystem/Object.h"
-#include "ObjectSystem/Property.h"
+#include "UObject/Object.h"
+#include "UObject/Property.h"
 #include "Render/Renderer.h"
 #include "Asset/LOD/StaticMeshLODGenerator.h"
 

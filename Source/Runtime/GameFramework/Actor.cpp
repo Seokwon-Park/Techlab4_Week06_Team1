@@ -2,7 +2,6 @@
 #include "Actor.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
-#include "ObjectSystem/ObjectFactory.h"
 #include "Component/SceneComponent.h"
 #include "Component/ParticleSubUVComponent.h"
 #include "Core/EngineLog.h"

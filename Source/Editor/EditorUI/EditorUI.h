@@ -39,5 +39,4 @@ private:
 	std::function<void()> OnOpenScene;
 	std::function<void()> OnSaveScene;
 	std::function<void()> OnSaveSceneAs;
-
 };

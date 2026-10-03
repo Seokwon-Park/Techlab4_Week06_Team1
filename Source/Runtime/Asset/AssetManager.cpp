@@ -12,7 +12,7 @@
 #include "Asset/ObjImporter/ObjImporter.h"
 
 #include "Render/GeometryGenerator.h"
-#include "ObjectSystem/ObjectFactory.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "Render/ImageLoader.h"
 
@@ -50,7 +50,7 @@ namespace
 		TUniquePtr<FIndexBuffer> IB = RenderCommand::CreateStaticIndexBuffer(Optimized.Indices.GetData(), static_cast<uint32>(Optimized.Indices.size()));
 		if (VB == nullptr || IB == nullptr) return nullptr;
 
-		UStaticMesh* Mesh = FObjectFactory::ConstructObject<UStaticMesh>();
+		UStaticMesh* Mesh = NewObject<UStaticMesh>();
 		Mesh->MeshData = std::move(Optimized);
 
 		// Vertex/Index GPU 업로드
@@ -104,7 +104,7 @@ namespace
 
 UAssetManager& UAssetManager::Get()
 {
-	static UAssetManager* Instance = FObjectFactory::ConstructObject<UAssetManager>();
+	static UAssetManager* Instance = NewObject<UAssetManager>();
 	return *Instance;
 }
 
@@ -197,7 +197,7 @@ void UAssetManager::CreateDefaultTextures()
 		return;
 	}
 
-	UTexture2D* WhiteTexture = FObjectFactory::ConstructObject<UTexture2D>();
+	UTexture2D* WhiteTexture = NewObject<UTexture2D>();
 	WhiteTexture->SetResource(std::move(Resource));
 	WhiteTexture->SetPath("WhiteTexture");
 
@@ -248,7 +248,7 @@ void UAssetManager::CreateDefaultMeshes()
 		0, 2, 3
 	};
 
-	UStaticMesh* Mesh = FObjectFactory::ConstructObject<UStaticMesh>();
+	UStaticMesh* Mesh = NewObject<UStaticMesh>();
 	Mesh->VertexBuffer = RenderCommand::CreateStaticVertexBuffer(
 		Vertices,
 		sizeof(Vertices), sizeof(FParticleVertex));
@@ -277,7 +277,7 @@ void UAssetManager::CreateDefaultMeshes()
 
 void UAssetManager::CreateDefaultMaterial()
 {
-	UMaterial* DefaultMat = FObjectFactory::ConstructObject<UMaterial>();
+	UMaterial* DefaultMat = NewObject<UMaterial>();
 	DefaultMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/StaticMeshShader.hlsl");
 	DefaultMat->Textures.Add(GetAssetByPath<UTexture2D>("WhiteTexture"));
 
@@ -289,7 +289,7 @@ void UAssetManager::CreateDefaultMaterial()
 
 void UAssetManager::CreateParticleMaterial()
 {
-	UMaterial* ParticleMat = FObjectFactory::ConstructObject<UMaterial>();
+	UMaterial* ParticleMat = NewObject<UMaterial>();
 	ParticleMat->Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/ParticleSubUVShader.hlsl");
 	ParticleMat->Textures.Add(GetAssetByPath<UTexture2D>("Assets/SubUV/StarParticle.png"));
 	ParticleMat->BlendState = EBlendState::AlphaBlend;
@@ -336,7 +336,7 @@ UTexture2D* UAssetManager::LoadTexture(const FString& InPath, bool bGenerateMips
 
 	if (!Resource) return nullptr;
 
-	UTexture2D* Asset = FObjectFactory::ConstructObject<UTexture2D>();
+	UTexture2D* Asset = NewObject<UTexture2D>();
 	Asset->SetResource(std::move(Resource));
 	RegisterAsset(InPath, Asset);
 
@@ -345,7 +345,7 @@ UTexture2D* UAssetManager::LoadTexture(const FString& InPath, bool bGenerateMips
 
 UFont* UAssetManager::LoadFontAtlas(const FString& JsonPath, const FString& AtlasTexturePath)
 {
-	UFont* Font = FObjectFactory::ConstructObject<UFont>();
+	UFont* Font = NewObject<UFont>();
 
 	if (!Font->LoadFontAtlasJson(JsonPath))
 	{

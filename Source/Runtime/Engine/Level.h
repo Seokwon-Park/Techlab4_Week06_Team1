@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ObjectSystem/Object.h"
-#include "ObjectSystem/Class.h"
-#include "Container/Array.h"
+#include "UObject/Object.h"
+#include "UObject/Class.h"
+#include "Containers/Array.h"
 
 class UWorld;
 class AActor;

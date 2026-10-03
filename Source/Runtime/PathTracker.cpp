@@ -1,6 +1,6 @@
 #include "EnginePCH.h"
 #include "PathTracker.h"
-#include "ObjectSystem/Object.h"
+#include "UObject/Object.h"
 
 #include "GameFramework//Actor.h"
 #include "Render/LineBatcher.h"

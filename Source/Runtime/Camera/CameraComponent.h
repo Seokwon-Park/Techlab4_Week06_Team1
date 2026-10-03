@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ObjectSystem/Class.h"
+#include "UObject/Class.h"
 #include "../Component/SceneComponent.h"
 #include "../Math/EngineMath.h"
 #include "../Math/Rotator.h"

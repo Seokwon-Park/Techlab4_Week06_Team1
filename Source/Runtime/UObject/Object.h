@@ -46,6 +46,7 @@ public:                                                                 \
         {                                                               \
             c.Name  = #ClassName;                                       \
             c.Super = Super::StaticClass();								\
+            c.ClassSize = sizeof(ClassName);							\
 			c.Constructor = std::is_abstract_v<ClassName> ? nullptr : &InternalConstructInstance<ClassName>;\
 			if (&ClassName::RegisterProperties != &Super::RegisterProperties) \
 			{															\
@@ -62,7 +63,7 @@ private:
 
 class UObject
 {
-	friend class FObjectFactory;
+	friend UObject* StaticConstructObject_Internal(const struct FStaticConstructObjectParameters& Params);
 public:
 	UObject();
 	UObject(bool bRegister);
@@ -125,9 +126,6 @@ private:
 	EObjectFlags Flags = EObjectFlags::RF_NoFlags;
 
 	bool bIsRegistered = true;
-
-	TMap<FString, int32> ChildNameCounters;
-	friend class FObjectFactory;
 };
 
 extern TArray<UObject*> GUObjectArray;

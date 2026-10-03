@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ObjectSystem/Object.h"
-#include "ObjectSystem/Class.h"
+#include "UObject/Object.h"
+#include "UObject/Class.h"
 
 class URenderAsset : public UObject
 {

@@ -50,6 +50,8 @@ bool UBenchmarkEngine::Init()
 	if (!Super::Init())
 		return false;
 
+	World = UWorld::CreateWorld(EWorldType::Game, true);
+
 	ImGuiRenderer = MakeUnique<FImGuiRenderer>();
 	if (!ImGuiRenderer->Init(GetEngineLoop().GetMainWindow()->GetHandle(), GetEngineLoop().GetRenderDevice()->GetDevice(), GetEngineLoop().GetRenderDevice()->GetContext()))
 	{
@@ -268,7 +270,6 @@ void UBenchmarkEngine::UpdateGizmoAndPicking()
 	if (FInputSystem::IsMousePressed(EMouseButton::Left) &&
 		!Gizmo->IsUsing() && Gizmo->GetHoveredAxis() < 0)
 	{
-
 		FHitResult Hit;
 		SelectPrimitive(World->LineTraceSingle(Ray, Hit) ? Hit.HitComponent : nullptr);
 	}

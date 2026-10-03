@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ObjectSystem/Object.h"
-#include "ObjectSystem/Class.h"
+#include "UObject/Object.h"
+#include "UObject/Class.h"
 #include "GameFramework/Actor.h"
 #include "Component/PrimitiveComponent.h"
 #include "Component/TextRenderComponent.h"
@@ -13,6 +13,7 @@
 #include "Engine/Scene.h"
 #include "Camera/CameraActor.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
+#include "Engine/EngineTypes.h"
 
 //class ACameraActor;
 class ULevel;
@@ -89,7 +90,16 @@ public:
 
 	const FRenderStats& GetRenderStats() const { return RenderStats; }
 
+	void SetWorldType(EWorldType InType) { WorldType = InType; }
+	EWorldType GetWorldType() const { return WorldType; }
+
+	static UWorld* CreateWorld(const EWorldType InWorldType, bool bInformEngineOfWorld, FName WorldName = NAME_None); /*, UPackage* InWorldPackage = NULL, bool bAddToRoot = true, ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, const InitializationValues* InIVS = nullptr, bool bInSkipInitWorld = false);*/
+
+	bool IsPlayInEditor() const { return WorldType == EWorldType::PIE; }
+
 private:
+	EWorldType WorldType = EWorldType::None;
+
 	struct alignas(64) FGatherChunk
 	{
 		TArray<FRenderPacket> Packets;              // 스태틱 묶음에 못 들어가는 것 (반투명 섹션, Renderer 없는 호출)
@@ -121,8 +131,9 @@ private:
 
 	// GatherRenderPackets가 매 프레임 채우는 컬링 결과. 용량을 재사용한다.
 	TArray<FPrimitiveSceneProxy*> VisibleProxies;
-    TArray<FLODSelectionInput> LODInputs;
-    TArray<uint8> SelectedLODs;
+	TArray<FLODSelectionInput> LODInputs;
+	TArray<uint8> SelectedLODs;
 
 	FRenderStats RenderStats;
+
 };
