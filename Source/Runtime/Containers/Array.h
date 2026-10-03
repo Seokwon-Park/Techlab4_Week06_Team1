@@ -6,12 +6,167 @@
 
 #include "Core/Types.h"
 
+template <typename ContainerType, typename ElementType, typename SizeType>
+class TIndexedContainerIterator
+{
+	//using ContainerAllocatorType = typename ContainerType::AllocatorType;
+public:
+	[[nodiscard]] TIndexedContainerIterator(ContainerType& InContainer, SizeType StartIndex = 0)
+		: Container(InContainer)
+		, Index(StartIndex)
+	{
+	}
+
+	TIndexedContainerIterator& operator++()
+	{
+		++Index;
+		return *this;
+	}
+
+	TIndexedContainerIterator operator++(int)
+	{
+		TIndexedContainerIterator Tmp(*this);
+		++Index;
+		return Tmp;
+	}
+
+	TIndexedContainerIterator& operator--()
+	{
+		--Index;
+		return *this;
+	}
+
+	TIndexedContainerIterator operator--(int)
+	{
+		TIndexedContainerIterator Tmp(*this);
+		--Index;
+		return Tmp;
+	}
+
+	TIndexedContainerIterator& operator+=(SizeType Offset)
+	{
+		Index += Offset;
+		return *this;
+	}
+
+	[[nodiscard]] TIndexedContainerIterator operator+(SizeType Offset) const
+	{
+		TIndexedContainerIterator Tmp(*this);
+		return Tmp += Offset;
+	}
+
+	TIndexedContainerIterator& operator-=(SizeType Offset)
+	{
+		return *this += -Offset;
+	}
+
+	[[nodiscard]] TIndexedContainerIterator operator-(SizeType Offset) const
+	{
+		TIndexedContainerIterator Tmp(*this);
+		return Tmp -= Offset;
+	}
+
+	[[nodiscard]] ElementType& operator* () const
+	{
+		return Container[Index];
+	}
+
+	[[nodiscard]] ElementType* operator->() const
+	{
+		return &Container[Index];
+	}
+
+	[[nodiscard]] explicit operator bool() const
+	{
+		return Container.IsValidIndex(Index);
+	}
+
+	[[nodiscard]] SizeType GetIndex() const
+	{
+		return Index;
+	}
+
+	void Reset()
+	{
+		Index = 0;
+	}
+
+	void SetToEnd()
+	{
+		Index = Container.Num();
+	}
+
+	void RemoveCurrent()
+	{
+		Container.RemoveAt(Index);
+		Index--;
+	}
+
+	void RemoveCurrentSwap()
+	{
+		Container.RemoveAtSwap(Index);
+		Index--;
+	}
+
+	[[nodiscard]] bool operator==(const TIndexedContainerIterator& Rhs) const
+	{
+		return &Container == &Rhs.Container && Index == Rhs.Index;
+	}
+
+	[[nodiscard]] bool operator!=(const TIndexedContainerIterator& Rhs) const
+	{
+		return &Container != &Rhs.Container || Index != Rhs.Index;
+	}
+
+private:
+	ContainerType& Container;
+	SizeType      Index;
+};
+
+template <typename ContainerType, typename ElementType, typename SizeType>
+[[nodiscard]] TIndexedContainerIterator<ContainerType, ElementType, SizeType> operator+(SizeType Offset, TIndexedContainerIterator<ContainerType, ElementType, SizeType> RHS)
+{
+	return RHS + Offset;
+}
+
+
+template <typename ElementType, typename IteratorType>
+struct TDereferencingIterator
+{
+	[[nodiscard]] explicit TDereferencingIterator(IteratorType InIter)
+		: Iter(InIter)
+	{
+	}
+
+	[[nodiscard]] ElementType& operator*() const
+	{
+		return *(ElementType*)*Iter;
+	}
+
+	TDereferencingIterator& operator++()
+	{
+		++Iter;
+		return *this;
+	}
+
+	[[nodiscard]] bool operator!=(const TDereferencingIterator& Rhs) const
+	{
+		return Iter != Rhs.Iter;
+	}
+
+private:
+	IteratorType Iter;
+};
+
 template<typename T>
 class TArray
 {
 public:
-	using ElementType = T;
+	using RangedForIteratorType = typename std::vector<T>::iterator;
+	using RangedForConstIteratorType = typename std::vector<T>::const_iterator;
 
+	using ElementType = T;
+	using SizeType = uint32;
 	TArray() = default;
 	~TArray() = default;
 
@@ -70,17 +225,37 @@ public:
 	int32 Num() const;
 	int32 Max() const;
 
+	void Empty(SizeType Slack = 0)
+	{
+		std::vector<T>().swap(mDatas);
+		mDatas.reserve(static_cast<size_t>(Slack));
+	}
+
 	bool IsEmpty() const;
 
-	void Reset();
+	void Reset(SizeType NewSize = 0);
+
+	void RemoveAt(uint32 Index)
+	{
+		assert(Index < mDatas.size());
+		mDatas.erase(mDatas.begin() + Index);
+	}
 	void RemoveAt(uint32 index, int32 count);
 	void RemoveAtSwap(uint32 index);
 	void RemoveLast();
 
 	size_t size() const { return mDatas.size(); }
 
-	T& Last();
-	const T& Last() const;
+	[[nodiscard]] ElementType& Last(SizeType IndexFromTheEnd = 0)
+	{
+		//RangeCheck(ArrayNum - IndexFromTheEnd - 1);
+		assert(mDatas.size() - IndexFromTheEnd - 1 >= 0);
+		return GetData()[mDatas.size() - IndexFromTheEnd - 1];
+	}
+	[[nodiscard]] const ElementType& Last(SizeType IndexFromTheEnd = 0) const
+	{
+		return const_cast<TArray*>(this)->Last(IndexFromTheEnd);
+	}
 
 	T& Front();
 	const T& Front() const;
@@ -98,6 +273,8 @@ public:
 
 private:
 	std::vector<T> mDatas;
+	SizeType ArrayNum; // Size
+	SizeType ArrayMax; // Capacity
 };
 
 template<typename T>
@@ -279,10 +456,12 @@ inline bool TArray<T>::IsEmpty() const
 }
 
 template<typename T>
-inline void TArray<T>::Reset()
+inline void TArray<T>::Reset(SizeType NewSize)
 {
-	mDatas.clear();
+	mDatas.clear();                              // 용량 유지
+	mDatas.reserve(static_cast<size_t>(NewSize)); // 모자랄 때만 재할당
 }
+
 
 template<typename T>
 inline void TArray<T>::RemoveAt(uint32 index, int32 count)
@@ -314,20 +493,6 @@ inline void TArray<T>::RemoveLast()
 
 	mDatas.erase(mDatas.begin() + mDatas.size() - 1);
 
-}
-
-template<typename T>
-inline T& TArray<T>::Last()
-{
-	assert(!mDatas.empty());
-	return mDatas.back();
-}
-
-template<typename T>
-const T& TArray<T>::Last() const
-{
-	assert(!mDatas.empty());
-	return mDatas.back();
 }
 
 template<typename T>

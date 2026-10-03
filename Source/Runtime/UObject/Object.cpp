@@ -2,10 +2,10 @@
 #include "Object.h"
 
 #include "Core/EngineStatics.h"
-#include "ObjectSystem/Class.h"
+#include "UObject/Class.h"
 
 #include "Serialization/TypeSerializer.h"
-#include "Asset/AssetManager.h"
+#include "Asset/AssetManager.h" //??? 의존성 제거 필요
 
 
 TArray<UObject*> GUObjectArray;

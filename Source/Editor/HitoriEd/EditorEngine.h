@@ -61,6 +61,10 @@ private:
 	// 화면 합성과 View 설정 보관으로 프레임을 마무리한다.
 	void EndFrame();
 
+	FWorldContext& GetEditorWorldContext();
+	FWorldContext* GetPIEWorldContext(int32 WorldPIEInstance = 0);
+	UWorld* GetActiveWorld() const { return PlayWorld ? PlayWorld : EditorWorld; }
+
 	// FEngineLoop 소유. OnInit에서 받아 둔다.
 	FWindow* MainWindow = nullptr;
 	FSwapchain* MainWindowSC = nullptr;
@@ -90,6 +94,9 @@ private:
 	FRenderQueue RenderQueue;
 	FOutlinerPanel* OutlinerPanel = nullptr;
 	FContentDrawerPanel* ContentDrawerPanel = nullptr;
+
+	UWorld* EditorWorld = nullptr;
+	UWorld* PlayWorld = nullptr;
 
 	void ResetSceneSelection();
 

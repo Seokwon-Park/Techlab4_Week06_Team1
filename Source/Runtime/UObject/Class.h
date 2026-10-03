@@ -12,6 +12,7 @@ public:
 
 	FString Name;
 	UClass* Super = nullptr;
+	uint64 ClassSize = 0;
 	ClassConstructor Constructor = nullptr;
 
 	TArray<FProperty> Properties;
@@ -46,6 +47,9 @@ public:
 	{
 		Properties.Add({ InName, InType, InOffset, sizeof(T) });
 	}
+private:
+	mutable int32 ClassUnique = 0;
+	friend FName MakeUniqueObjectName(UObject*, const UClass*, FName);
 };
 
 //보류
