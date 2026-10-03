@@ -723,43 +723,13 @@ namespace
 				ComponentNameInputBuf[0] = '\0';
 				ImGui::CloseCurrentPopup();
 			}
-			if (ImGui::MenuItem("SpotLight Component"))
+			/*if (ImGui::MenuItem("SpotLight Component"))
 			{
 				OutSelectedComponent = Actor->AddComponent(USpotLightComponent::StaticClass(), FString(ComponentNameInputBuf));
 				ComponentNameInputBuf[0] = '\0';
 				ImGui::CloseCurrentPopup();
-			}
+			}*/
 			ImGui::EndPopup();
-		}
-	}
-
-	void DrawCompoenetList(AActor* SelectedActor, UActorComponent*& OutSelectedComponent)
-	{
-		if (!SelectedActor) { return; }
-		const TArray<UActorComponent*>& Components = SelectedActor->GetComponents();
-		USceneComponent* Root = SelectedActor->GetRootComponent();
-		
-		if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			for (UActorComponent* Component : SelectedActor->GetComponents())
-			{
-				const bool bSelected = (Component == OutSelectedComponent);
-
-				FString Label = Component->GetClass()->Name;
-				if (Component == Root)
-				{
-					Label += " (Root)";
-				}
-
-				ImGui::PushID(Component);
-				if (ImGui::Selectable(Label.c_str(), bSelected))
-				{
-					OutSelectedComponent = Component;
-				}
-				ImGui::SameLine();
-				ImGui::TextDisabled("(%s)", Component->GetClass()->Name.c_str());
-				ImGui::PopID();
-			}
 		}
 	}
 }
@@ -808,6 +778,16 @@ void FDetailsPanel::OnRender()
 				DrawMaterialSlots(MeshComponent);
 			}
 			ImGui::PopID();
+
+			if (PendingDeleteComponent)
+			{
+				if (DeleteCallback)
+				{
+					DeleteCallback(PendingDeleteComponent);
+				}
+
+				PendingDeleteComponent = nullptr;
+			}
 		}
 	}
 	ImGui::End();
@@ -828,12 +808,55 @@ void FDetailsPanel::SelectComponent(UActorComponent* Component)
 
 	TargetComponent = Component;
 
-	HTR_LOG(Info, "{} UUID {} is selected", TargetComponent->GetName(), TargetComponent->GetUUID());
-
 	USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
-
 	if (Callback)
 		Callback(SceneComponent);
+}
+
+void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& OutSelectedComponent)
+{
+	if (!SelectedActor) { return; }
+	const TArray<UActorComponent*>& Components = SelectedActor->GetComponents();
+	USceneComponent* Root = SelectedActor->GetRootComponent();
+
+	if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		for (UActorComponent* Component : Components)
+		{
+			const bool bSelected = (Component == OutSelectedComponent);
+
+			FString Label = Component->GetName();
+			if (Component == Root)
+			{
+				Label += " (Root)";
+			}
+
+			ImGui::PushID(Component);
+
+			const ImVec2 RowStart = ImGui::GetCursorScreenPos();
+			const float RowWidth = ImGui::GetContentRegionAvail().x;
+
+			if (ImGui::Selectable(Label.c_str(), bSelected, ImGuiSelectableFlags_SpanAvailWidth))
+			{
+				OutSelectedComponent = Component;
+			}
+
+			if (ImGui::BeginPopupContextItem("Component Context"))
+			{
+				if (ImGui::MenuItem("Delete"))
+				{
+					PendingDeleteComponent = Component;
+				}
+				ImGui::EndPopup();
+			}
+
+			const FString ClassName = std::format("({})", Component->GetClass()->Name);
+			const float TextWidth = RowStart.x + RowWidth - ImGui::CalcTextSize(ClassName.c_str()).x;
+			ImGui::GetWindowDrawList()->AddText(ImVec2(TextWidth, RowStart.y), IM_COL32(200, 200, 200, 255), ClassName.c_str());
+
+			ImGui::PopID();
+		}
+	}
 }
 
 

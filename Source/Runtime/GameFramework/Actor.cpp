@@ -5,10 +5,15 @@
 #include "ObjectSystem/ObjectFactory.h"
 #include "Component/SceneComponent.h"
 #include "Component/ParticleSubUVComponent.h"
+#include "Core/EngineLog.h"
+
+enum class EAttachmentRule;
+
 
 AActor::AActor()
 {
     PrimaryActorTick.Target = this;
+    SetRootComponent(CreateDefaultSubobject<USceneComponent>("DefaultSceneRoot"));
 }
 
 AActor::~AActor()
@@ -153,22 +158,49 @@ UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
 	{
         World->GetScene().AddPrimitive(Primitive);
 	}
+    
+	if (USceneComponent* SceneComponent = Cast<USceneComponent>(NewComponent))
+	{
+		SceneComponent->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+	}
+
     if (UParticleSubUVComponent* ParticleSubUV = Cast<UParticleSubUVComponent>(NewComponent))
     {
         ParticleSubUV->BeginPlay();
-		RegisterAllActorTickFunctions(true);
+        RegisterAllActorTickFunctions(true);
     }
-
-	USceneComponent* SceneComponent = Cast<USceneComponent>(NewComponent);
-	if (!RootComponent)
-	{
-		SetRootComponent(SceneComponent);
-	}
-    else
-    {
-		SceneComponent->SetupAttachment(RootComponent);
-    }
-
 
 	return NewComponent;
+}
+
+void AActor::DestroyComponent(UActorComponent* Component)
+{
+    if (!Component)
+        return;
+
+    if (Component == RootComponent)
+    {
+        HTR_LOG(Warning, "DefaultSceneRoot cannot be deleted.");
+        return;
+    }
+
+    if (USceneComponent* Parent = Cast<USceneComponent>(Component))
+    {
+        TArray<USceneComponent*> Children = Parent->GetAttachChildren();
+        for (USceneComponent* Candidate : Children)
+        {
+            if (!Candidate) { continue; }
+
+            Candidate->DetachFromParent(EAttachmentRule::KeepWorld);
+            Candidate->SetupAttachment(Parent->GetAttachParent(), EAttachmentRule::KeepWorld);
+        }
+    }
+
+    if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
+    {
+        World->GetScene().RemovePrimitive(Primitive);
+    }
+    RemoveOwnedComponent(Component);
+    delete Component;
+    return;
 }

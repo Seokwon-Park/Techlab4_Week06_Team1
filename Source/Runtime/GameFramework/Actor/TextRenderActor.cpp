@@ -4,7 +4,7 @@
 ATextRenderActor::ATextRenderActor()
 {
 	TextRenderComponent = CreateDefaultSubobject<UTextRenderComponent>("TextRenderComponent");
-	SetRootComponent(TextRenderComponent);
+	TextRenderComponent->SetupAttachment(GetRootComponent());
 }
 
 ATextRenderActor::~ATextRenderActor()

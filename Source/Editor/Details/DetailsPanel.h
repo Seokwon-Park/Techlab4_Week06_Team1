@@ -8,6 +8,7 @@
 struct FTransform;
 
 using DetailsSelectionCallback = std::function<void(USceneComponent*)>;
+using DetailsDeleteComponentCallback = std::function<void(UActorComponent*)>;
 
 class FDetailsPanel : public IEditorPanel
 {
@@ -16,9 +17,12 @@ public:
 	~FDetailsPanel();
 
 	bool Init() override;
-	void Tick(float DeltaTime)override;
+	void Tick(float DeltaTime) override;
 	void OnRender() override;
+
 	void SelectComponent(UActorComponent* Component);
+	void DrawCompoenetList(AActor* SelectedActor, UActorComponent*& OutSelectedComponent);
+
 	const char* GetPanelName() const override { return "Details"; }
 
 	void SetTarget(AActor* InTargetActor) 
@@ -29,6 +33,7 @@ public:
 	void SetTargetComponent(UActorComponent* InTargetComponent) { TargetComponent = InTargetComponent; }
 
 	void SetSelectionCallback(DetailsSelectionCallback InCallback) { Callback = InCallback; }
+	void SetDeleteComponentCallback(DetailsDeleteComponentCallback InCallback) { DeleteCallback = InCallback; }
 
 	void SetWorld(UWorld* InWorld) { World = InWorld; }
 
@@ -41,5 +46,8 @@ private:
 	AActor* TargetActor = nullptr;
 	UActorComponent* TargetComponent = nullptr;
 	DetailsSelectionCallback Callback;
+	DetailsDeleteComponentCallback DeleteCallback;
+
+	UActorComponent* PendingDeleteComponent = nullptr;
 };
 

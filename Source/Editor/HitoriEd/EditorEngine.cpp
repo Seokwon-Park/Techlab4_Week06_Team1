@@ -142,14 +142,13 @@ bool UEditorEngine::Init()
 	OutlinerPanel = EditorUI->AddEditorPanel<FOutlinerPanel>();
 	OutlinerPanel->SetWorld(World);
 	OutlinerPanel->SetSelectionCallback(
-		[this](UPrimitiveComponent* Primitive)
+		[this](USceneComponent* Scene)
 		{
-			Gizmo->SetTarget(Primitive);
-			Outline->SetTarget(Primitive);
-			DetailsPanel->SetTarget(Primitive ? Primitive->GetOwner() : nullptr);
+			Gizmo->SetTarget(Scene);
+			Outline->SetTarget(Cast<UPrimitiveComponent>(Scene));
+			DetailsPanel->SetTarget(Scene ? Scene->GetOwner() : nullptr);
 		}
 	);
-
 	DetailsPanel->SetSelectionCallback(
 		[this](USceneComponent* SceneComponent)
 		{
@@ -161,6 +160,12 @@ bool UEditorEngine::Init()
 		[this](AActor* Actor)
 		{
 			DeleteActor(Actor);
+		}
+	);
+	DetailsPanel->SetDeleteComponentCallback(
+		[this](UActorComponent* Component)
+		{
+			DeleteComponent(Component);
 		}
 	);
 
@@ -464,9 +469,8 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 
 	if (Gizmo->GetTarget())
 	{
-		auto Target = Cast<UPrimitiveComponent>(Gizmo->GetTarget());
-
-		FBox box = Target->CalcBounds();
+		//auto Target = Cast<UPrimitiveComponent>(Gizmo->GetTarget());
+		//FBox box = Target->CalcBounds();
 
 		RenderCommand::ClearDepthStencil(ViewRenderingInfo.DepthStencil.Texture);
 
@@ -555,6 +559,16 @@ void UEditorEngine::DeleteActor(AActor* Actor)
 	DetailsPanel->SelectComponent(nullptr);
 
 	Actor->Destroy();
+}
+
+void UEditorEngine::DeleteComponent(UActorComponent* Component)
+{
+	if (!Component)
+		return;
+
+	DetailsPanel->SelectComponent(nullptr);
+	Outline->SetTarget(nullptr);
+	Component->GetOwner()->DestroyComponent(Component);
 }
 
 // 씬 변경으로 무효화된 에디터의 선택 참조를 모두 해제한다.
