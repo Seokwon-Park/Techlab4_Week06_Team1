@@ -22,6 +22,13 @@ USceneComponent::~USceneComponent()
 	DetachFromParent();
 }
 
+void USceneComponent::SetRelativeLocationAndRotation(const FVector& NewLocation, const FRotator& NewRotation)
+{
+	Transform.Location = NewLocation;
+	Transform.Rotation = NewRotation;
+	MarkTransformDirty();
+}
+
 void USceneComponent::SetupAttachment(USceneComponent* InParent)
 {
 	if (InParent == this || AttachParent == InParent) return;
@@ -100,6 +107,49 @@ FMatrix USceneComponent::GetWorldMatrix() const
 	}
 
 	return LocalMatrix;
+}
+
+void USceneComponent::SetWorldLocation(FVector NewLocation, bool bSweep)
+{
+	FVector NewRelLocation = NewLocation;
+
+	if (GetAttachParent() != nullptr)
+	{
+		
+	}
+
+	SetRelativeLocation(NewRelLocation);
+}
+
+void USceneComponent::SetWorldRotation(FRotator NewRotation, bool bSweep)
+{
+	FRotator NewRelRotation = NewRotation;
+
+	if (GetAttachParent() != nullptr)
+	{
+		
+	}
+
+	SetRelativeRotation(NewRelRotation);
+}
+
+void USceneComponent::SetWorldLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep)
+{
+}
+
+void USceneComponent::SetWorldScale3D(FVector NewScale)
+{
+}
+
+void USceneComponent::SetWorldTransform(const FTransform& NewTransform, bool bSweep)
+{
+}
+
+void USceneComponent::MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep)
+{
+	// TODO : Check Sweep, Add FHitResult
+	
+	SetWorldLocationAndRotation(Transform.Location + Delta, NewRotation, bSweep);
 }
 
 void USceneComponent::MarkTransformDirty()

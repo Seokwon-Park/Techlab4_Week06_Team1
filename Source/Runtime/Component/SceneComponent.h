@@ -30,7 +30,7 @@ public:
 		Transform.Rotation = InRotation; 
 		MarkTransformDirty();
 	}
-
+	void SetRelativeLocationAndRotation(const FVector& NewLocation, const FRotator& NewRotation);
 	const FVector& GetRelativeScale3D() const { return Transform.Scale; }
 	void SetRelativeScale3D(const FVector& InScale) 
 	{
@@ -61,10 +61,20 @@ public:
 	FRotator GetWorldRotation() const;
 	FVector GetWorldScale3D() const;
 	FMatrix GetWorldMatrix() const;
+	
+	void SetWorldLocation(FVector NewLocation, bool bSweep);
+	void SetWorldRotation(FRotator NewRotation, bool bSweep);
+	void SetWorldLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep);
+	void SetWorldScale3D(FVector NewScale);
+	void SetWorldTransform(const FTransform& NewTransform, bool bSweep);
+	
+	void MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep);
 
 	void MarkTransformDirty();
 	virtual void OnTransformDirty() {};
 
+public:
+	FVector ComponentVelocity;
 
 protected:
 	bool bTransformDirty;
@@ -73,4 +83,7 @@ protected:
 	USceneComponent* AttachParent = nullptr; // Attach 부모 정보
 	TArray<USceneComponent*> AttachChildren;
 
+	bool bAbsoluteLocation = false;
+	bool bAbsoluteRotation = false;
+	bool bAbsoluteScale = false;
 };
