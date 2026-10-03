@@ -799,6 +799,8 @@ void FDetailsPanel::SelectComponent(UActorComponent* Component)
 	if (!Component)
 	{
 		TargetComponent = nullptr;
+		EditingNameComponent = nullptr;
+		bFocusNameEdit = false;
 
 		if (Callback)
 			Callback(nullptr);
@@ -816,46 +818,133 @@ void FDetailsPanel::SelectComponent(UActorComponent* Component)
 void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& OutSelectedComponent)
 {
 	if (!SelectedActor) { return; }
-	const TArray<UActorComponent*>& Components = SelectedActor->GetComponents();
+
+	if (PendingDragComponent && PendingDroppedComponent)
+	{
+		TryReparent(PendingDroppedComponent, PendingDragComponent);
+		PendingDragComponent = nullptr;
+		PendingDroppedComponent = nullptr;
+	}
+
 	USceneComponent* Root = SelectedActor->GetRootComponent();
 
-	if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
+	if (Root && ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		for (UActorComponent* Component : Components)
+		DrawSceneComponentNode(Root, Root, OutSelectedComponent);
+	}
+}
+
+void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneComponent* Root, UActorComponent*& OutSelectedComponent)
+{
+	if (!Component)
+		return;
+
+	const TArray<USceneComponent*>& Children = Component->GetAttachChildren();
+	const bool bIsLeaf = Children.IsEmpty();
+	bIsEditingName = (EditingNameComponent == Component);
+	ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow;
+	if (Component == OutSelectedComponent)
+	{
+		Flags |= ImGuiTreeNodeFlags_Selected;
+	}
+	if (bIsLeaf)
+	{
+		Flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+	}
+
+	FString Label = Component->GetName();
+	if (Component == Root)
+		Label += " (Root)";
+
+	ImGui::PushID(Component);
+	const ImVec2 RowStart = ImGui::GetCursorScreenPos();
+	const float RowWidth = ImGui::GetContentRegionAvail().x;
+	const bool bOpen = ImGui::TreeNodeEx("ComponentNode", Flags, "%s", bIsEditingName ? "" : Label.c_str());
+
+	USceneComponent* DragComponent = Component;
+
+	// source: Root 제외, 현재 Component를 payload에 담음
+	if (Component != Root && ImGui::BeginDragDropSource())
+	{
+		ImGui::SetDragDropPayload(EditorDragDrop::Component, &Component, sizeof(USceneComponent*));
+		ImGui::EndDragDropSource();
+	}
+	// target: 모든 행이 가능, payload를 받아 현재 Component를 부모로 사용
+	if (ImGui::BeginDragDropTarget())
+	{
+		if (const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload(EditorDragDrop::Component))
 		{
-			const bool bSelected = (Component == OutSelectedComponent);
-
-			FString Label = Component->GetName();
-			if (Component == Root)
-			{
-				Label += " (Root)";
-			}
-
-			ImGui::PushID(Component);
-
-			const ImVec2 RowStart = ImGui::GetCursorScreenPos();
-			const float RowWidth = ImGui::GetContentRegionAvail().x;
-
-			if (ImGui::Selectable(Label.c_str(), bSelected, ImGuiSelectableFlags_SpanAvailWidth))
-			{
-				OutSelectedComponent = Component;
-			}
-
-			if (ImGui::BeginPopupContextItem("Component Context"))
-			{
-				if (ImGui::MenuItem("Delete"))
-				{
-					PendingDeleteComponent = Component;
-				}
-				ImGui::EndPopup();
-			}
-
-			const FString ClassName = std::format("({})", Component->GetClass()->Name);
-			const float TextWidth = RowStart.x + RowWidth - ImGui::CalcTextSize(ClassName.c_str()).x;
-			ImGui::GetWindowDrawList()->AddText(ImVec2(TextWidth, RowStart.y), IM_COL32(200, 200, 200, 255), ClassName.c_str());
-
-			ImGui::PopID();
+			USceneComponent* DroppedComponent = *static_cast<USceneComponent**>(Payload->Data);
+			PendingDroppedComponent = DroppedComponent;
+			PendingDragComponent = DragComponent;
 		}
+		ImGui::EndDragDropTarget();
+	}
+
+	if (!bIsEditingName)
+	{
+		if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+			OutSelectedComponent = Component;
+
+		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+		{
+			EditingNameComponent = Component;
+			strncpy_s(ComponentNameEditBuffer, sizeof(ComponentNameEditBuffer), Component->GetName().c_str(), _TRUNCATE);
+			bFocusNameEdit = true;
+		}
+
+		if (ImGui::BeginPopupContextItem("Component Context"))
+		{
+			if (ImGui::MenuItem("Delete", nullptr, false, Component != Root))
+				PendingDeleteComponent = Component;
+			ImGui::EndPopup();
+		}
+
+		const FString ClassName = std::format("({})", Component->GetClass()->Name);
+		const float TextX = RowStart.x + RowWidth - ImGui::CalcTextSize(ClassName.c_str()).x;
+		ImGui::GetWindowDrawList()->AddText(ImVec2(TextX, RowStart.y), IM_COL32(200, 200, 200, 255), ClassName.c_str());
+	}
+	else
+	{
+		ImGui::SameLine();
+		if (bFocusNameEdit)
+		{
+			ImGui::SetKeyboardFocusHere();
+			bFocusNameEdit = false;
+		}
+
+		const bool bConfirmed = ImGui::InputText("Rename", ComponentNameEditBuffer, 
+			sizeof(ComponentNameEditBuffer), ImGuiInputTextFlags_EnterReturnsTrue);
+		const bool bCancelled = ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape);
+		const bool bFinished = bConfirmed || ImGui::IsItemDeactivatedAfterEdit();
+		if (bCancelled || bFinished)
+		{
+			if (!bCancelled && ComponentNameEditBuffer[0] != '\0')
+			{
+				Component->SetName(FName(ComponentNameEditBuffer));
+			}
+			EditingNameComponent = nullptr;
+		}
+	}
+
+	if (bOpen && !bIsLeaf)
+	{
+		for (USceneComponent* Child : Children)
+		{
+			DrawSceneComponentNode(Child, Root, OutSelectedComponent);
+		}
+		ImGui::TreePop();
+	}
+
+	ImGui::PopID();
+}
+
+void FDetailsPanel::TryReparent(USceneComponent* DroppedComponent, USceneComponent* DragComponent)
+{
+	if (DroppedComponent != nullptr && DroppedComponent->GetAttachParent() != DragComponent
+		&& DroppedComponent != DragComponent)
+	{
+		DroppedComponent->SetupAttachment(DragComponent, EAttachmentRule::KeepWorld);
 	}
 }
 

@@ -143,15 +143,16 @@ bool AActor::Destroy()
 
 UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
 {
-	if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
-	{
-		return nullptr;
-	}
+    if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
+    {
+        return nullptr;
+    }
 
-	UActorComponent* NewComponent 
-        = CastChecked<UActorComponent>(FObjectFactory::ConstructObject(ComponentClass, this, Name));
-	NewComponent->SetOwner(this);
-	Components.Add(NewComponent);
+    UActorComponent* NewComponent = NewObject<UActorComponent>(this, ComponentClass, Name);
+    if (!NewComponent)
+    {
+        return nullptr;
+    }
 
 	if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(NewComponent))
 	{
@@ -168,6 +169,9 @@ UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
         ParticleSubUV->BeginPlay();
         RegisterAllActorTickFunctions(true);
     }
+
+    NewComponent->SetOwner(this);
+    Components.Add(NewComponent);
 
 	return NewComponent;
 }

@@ -50,7 +50,7 @@ public:
 	template <typename T>
 	T* CreateDefaultSubobject(FName Name)
 	{
-		T* Component = NewObject<T>(this);
+		T* Component = NewObject<T>(this, Name);
 		Component->SetOwner(this);
 		Components.Add(Component);
 		return Component;

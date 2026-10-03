@@ -40,6 +40,9 @@ public:
 	ImFont* GetCustomFont() { return CustomFont; }
 
 private:
+	void DrawSceneComponentNode(USceneComponent* Component, USceneComponent* Root, UActorComponent*& OutSelectedComponent);
+	void TryReparent(USceneComponent* DroppedComponent, USceneComponent* DragComponent);
+
 	UWorld* World = nullptr;
 	ImFont* CustomFont = nullptr;
 
@@ -49,5 +52,12 @@ private:
 	DetailsDeleteComponentCallback DeleteCallback;
 
 	UActorComponent* PendingDeleteComponent = nullptr;
+	UActorComponent* EditingNameComponent = nullptr;
+	char ComponentNameEditBuffer[256] = {};
+	bool bFocusNameEdit = false;
+	bool bIsEditingName = false;
+
+	USceneComponent* PendingDroppedComponent = nullptr;
+	USceneComponent* PendingDragComponent = nullptr;
 };
 
