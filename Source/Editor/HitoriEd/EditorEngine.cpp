@@ -100,6 +100,10 @@ bool UEditorEngine::Init()
 
 	Gizmo = MakeUnique<FGizmo>();
 
+	FogRenderer = MakeUnique<FFogRenderer>();
+	FogRenderer->Init(Renderer);
+
+
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
 	DetailsPanel = EditorUI->AddEditorPanel<FDetailsPanel>();
 	EditorControlsPanel = EditorUI->AddEditorPanel<FEditorControlsPanel>();
@@ -289,6 +293,9 @@ void UEditorEngine::RenderMultipleViewports()
 			MultipleViewportsAdapter.GetEngineCameraLocation(ViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraForward(ViewIndex),
 			RenderQueue);
+
+		
+
 	}
 
 	EMultipleViewportsCameraPreset CameraPresets[4]{};
@@ -310,46 +317,7 @@ void UEditorEngine::EndFrame()
 	FStatRegistry::EndFrame();
 }
 
-// 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
-void UEditorEngine::UpdateGizmoAndPicking()
-{
-	// Delete는 BeginFrame에서 한 번만 처리하고 여기서는 View 입력만 다룬다.
-	const int32 ViewIndex = MultipleViewportsAdapter.GetActiveViewIndex();
-	if (ViewIndex == InvalidViewIndex || !ViewportsPanel->IsHovered())
-		return;
-
-	const FVector2 LocalMousePosition = ViewportsPanel->GetLocalMousePosition();
-	FRay Ray{};
-	if (!MultipleViewportsAdapter.TryGetActiveViewRay(LocalMousePosition, Ray))
-		return;
-
-	const FRect& Rect = MultipleViewportsAdapter.GetViewRect(ViewIndex);
-	const FVector2 ViewLocalMouse(
-		LocalMousePosition.X - Rect.X,
-		LocalMousePosition.Y - Rect.Y);
-	const FMatrix ViewProjection = MultipleViewportsAdapter.GetEngineViewProjection(ViewIndex);
-	bool bMouseDown = FInputSystem::IsMouseDown(EMouseButton::Left);
-
-	Gizmo->Update(
-		Ray,
-		ViewLocalMouse,
-		ViewProjection,
-		static_cast<int>(Rect.Width),
-		static_cast<int>(Rect.Height),
-		bMouseDown,
-		MultipleViewportsAdapter.GetEngineCameraLocation(ViewIndex),
-		MultipleViewportsAdapter.IsOrthographic(ViewIndex));
-
-	if (FInputSystem::IsMousePressed(EMouseButton::Left) && !Gizmo->IsUsing() && Gizmo->GetHoveredAxis() < 0)
-	{
-		MultipleViewportsAdapter.PickActiveView(LocalMousePosition, *World);
-		MultipleViewportsAdapter.ApplyLastPickToOutliner(*OutlinerPanel);
-	}
-
-}
-
-// View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
-void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
+void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
 	RenderCommand::BeginRenderPass(ViewRenderingInfo);
 	if (SettingsPanel->GetSettings().bDrawBatchLine)
@@ -398,6 +366,56 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
 	}
 
+
+
+	if (bDrawPrimitives)
+	{
+		// Grid 파이프라인이 바꾼 상태를 장면 기준으로 되돌린 뒤 반투명을 먼 것부터 그린다.
+		RenderCommand::SetRasterizerState(SceneRasterizerState);
+		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		Renderer->RenderTranslucent(ViewProjection);
+		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+	}
+
+	
+
+	RenderCommand::EndRenderPass(ViewRenderingInfo);
+}
+
+void UEditorEngine::RenderFogPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation,const FMatrix& ViewProjection, FRenderQueue& RenderQueue)
+{
+	
+	const TArray<FFogInfo>& FogInfos = World->GetScene().FogInfos;
+
+	if (FogInfos.Num() == 0)
+		return;
+	
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+
+	//Load는 기존 내용을 그대로 두고 그 위에 그림을 그린다는뜻
+	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
+		Color.LoadOp = ERenderTargetLoadOp::Load;
+
+	PassInfo.DepthStencil.Texture = nullptr;
+	RenderCommand::BeginRenderPass(PassInfo);
+
+	FogRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, FogInfos[0]);
+	
+	//Fog는 여러개있더라도 1개의 Fog만 인식해서 그리도록 해야한다.
+
+	RenderCommand::EndRenderPass(PassInfo);
+}
+
+void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
+{
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+
+	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
+		Color.LoadOp = ERenderTargetLoadOp::Load;
+
+
+	RenderCommand::BeginRenderPass(PassInfo);
+
 	if (SettingsPanel->GetSettings().bDrawBatchLine)
 	{
 		const EGridPlane GridPlane = MultipleViewportsAdapter.GetGridPlane(ViewIndex);
@@ -405,7 +423,7 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 		if (SettingsPanel->GetSettings().bDrawPSGrid && !MultipleViewportsAdapter.IsOrthographic(ViewIndex))
 		{
 			GridRenderer->OnRenderPSGrid(
-				ViewProjection, ViewCameraLocation, SettingsPanel->GetSettings(), ViewRenderingInfo.ViewportSetting
+				ViewProjection, ViewCameraLocation, SettingsPanel->GetSettings(), PassInfo.ViewportSetting
 			);
 		}
 		else
@@ -418,18 +436,9 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 				static_cast<float>(SettingsPanel->GetSettings().GridSpacing),
 				!MultipleViewportsAdapter.IsOrthographic(ViewIndex) ||
 				MultipleViewportsAdapter.GetCameraPreset(ViewIndex) == EMultipleViewportsCameraPreset::OrthographicView,
-				ViewRenderingInfo.ViewportSetting
+				PassInfo.ViewportSetting
 			);
 		}
-	}
-
-	if (bDrawPrimitives)
-	{
-		// Grid 파이프라인이 바꾼 상태를 장면 기준으로 되돌린 뒤 반투명을 먼 것부터 그린다.
-		RenderCommand::SetRasterizerState(SceneRasterizerState);
-		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		Renderer->RenderTranslucent(ViewProjection);
-		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
 	}
 
 	// TextRenderComponent 렌더링
@@ -452,7 +461,7 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 	// 스텐실 기반이라 선택 대상의 가시성이 꺼져 있어도 외곽선만 그린다.
 	if (Outline->GetTarget())
 	{
-		OutlineRenderer->OnRender(*Outline, ViewProjection, ViewRenderingInfo.ViewportSetting);
+		OutlineRenderer->OnRender(*Outline, ViewProjection, PassInfo.ViewportSetting);
 	}
 
 	if (Gizmo->GetTarget())
@@ -461,7 +470,7 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 
 		FBox box = Target->CalcBounds();
 
-		RenderCommand::ClearDepthStencil(ViewRenderingInfo.DepthStencil.Texture);
+		RenderCommand::ClearDepthStencil(PassInfo.DepthStencil.Texture);
 
 		GizmoRenderer->OnRender(
 			*Gizmo,
@@ -470,7 +479,7 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 			MultipleViewportsAdapter.IsOrthographic(ViewIndex));
 	}
 
-	RenderCommand::ClearDepthStencil(ViewRenderingInfo.DepthStencil.Texture);
+	RenderCommand::ClearDepthStencil(PassInfo.DepthStencil.Texture);
 
 	if (SettingsPanel->GetSettings().bShowUUID)
 	{
@@ -507,9 +516,58 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 		}
 	}
 
+	RenderCommand::EndRenderPass(PassInfo);
+}
+
+// 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
+void UEditorEngine::UpdateGizmoAndPicking()
+{
+	// Delete는 BeginFrame에서 한 번만 처리하고 여기서는 View 입력만 다룬다.
+	const int32 ViewIndex = MultipleViewportsAdapter.GetActiveViewIndex();
+	if (ViewIndex == InvalidViewIndex || !ViewportsPanel->IsHovered())
+		return;
+
+	const FVector2 LocalMousePosition = ViewportsPanel->GetLocalMousePosition();
+	FRay Ray{};
+	if (!MultipleViewportsAdapter.TryGetActiveViewRay(LocalMousePosition, Ray))
+		return;
+
+	const FRect& Rect = MultipleViewportsAdapter.GetViewRect(ViewIndex);
+	const FVector2 ViewLocalMouse(
+		LocalMousePosition.X - Rect.X,
+		LocalMousePosition.Y - Rect.Y);
+	const FMatrix ViewProjection = MultipleViewportsAdapter.GetEngineViewProjection(ViewIndex);
+	bool bMouseDown = FInputSystem::IsMouseDown(EMouseButton::Left);
+
+	Gizmo->Update(
+		Ray,
+		ViewLocalMouse,
+		ViewProjection,
+		static_cast<int>(Rect.Width),
+		static_cast<int>(Rect.Height),
+		bMouseDown,
+		MultipleViewportsAdapter.GetEngineCameraLocation(ViewIndex),
+		MultipleViewportsAdapter.IsOrthographic(ViewIndex));
+
+	if (FInputSystem::IsMousePressed(EMouseButton::Left) && !Gizmo->IsUsing() && Gizmo->GetHoveredAxis() < 0)
+	{
+		MultipleViewportsAdapter.PickActiveView(LocalMousePosition, *World);
+		MultipleViewportsAdapter.ApplyLastPickToOutliner(*OutlinerPanel);
+	}
+
+}
+
+// View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
+void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
+{
+	// 1. 불투명 Pass
+	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+	// 2. 안개 Pass
+	RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+	// 3. 오버레이 Pass
+	RenderOverlayPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
 
-	RenderCommand::EndRenderPass(ViewRenderingInfo);
 }
 
 

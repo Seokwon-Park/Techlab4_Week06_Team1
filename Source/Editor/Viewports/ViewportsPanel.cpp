@@ -444,8 +444,9 @@ void FViewportsPanel::ResizeSlot(FViewSlot& Slot, const uint32 Width, const uint
 	Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	Slot.ColorTarget = RenderCommand::CreateTexture2D(Desc);
 
-	Desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	Desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	// Fog 패스가 깊이를 셰이더에서 읽으므로 DSV와 SRV를 둘 다 만들 수 있는 TYPELESS로 만든다
+	Desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+	Desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 	Slot.DepthTarget = RenderCommand::CreateTexture2D(Desc);
 
 	Slot.Width = Width;

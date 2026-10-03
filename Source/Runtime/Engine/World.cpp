@@ -14,6 +14,7 @@
 
 #include "Collision/Ray.h"
 #include "Component/BillboardComponent.h"
+#include "Component/ExponentialHeightFogComponent.h"
 
 #include "Component/StaticMeshComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
@@ -92,6 +93,8 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 	{
 		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
 			Scene.AddPrimitive(Primitive);
+		else if(UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
+			Scene.AddFogInfo(Fog->GetFogInfo());
 	}
 
 	// 4. Level->Actors에 등록
