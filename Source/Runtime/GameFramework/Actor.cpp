@@ -164,14 +164,14 @@ UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
 		SceneComponent->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
 	}
 
+    NewComponent->SetOwner(this);
+    Components.Add(NewComponent);
+
     if (UParticleSubUVComponent* ParticleSubUV = Cast<UParticleSubUVComponent>(NewComponent))
     {
         ParticleSubUV->BeginPlay();
         RegisterAllActorTickFunctions(true);
     }
-
-    NewComponent->SetOwner(this);
-    Components.Add(NewComponent);
 
 	return NewComponent;
 }
