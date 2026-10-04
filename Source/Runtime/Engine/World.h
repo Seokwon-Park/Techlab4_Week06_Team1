@@ -33,8 +33,6 @@ struct FRenderStats
 	void Reset() { *this = FRenderStats(); }
 };
 
-
-
 class UWorld : public UObject
 {
 	DECLARE_CLASS(UWorld, UObject)

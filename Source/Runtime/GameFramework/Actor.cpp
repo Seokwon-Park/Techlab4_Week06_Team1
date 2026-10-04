@@ -3,10 +3,16 @@
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "Component/SceneComponent.h"
+#include "Component/ParticleSubUVComponent.h"
+#include "Core/EngineLog.h"
+
+enum class EAttachmentRule;
+
 
 AActor::AActor()
 {
     PrimaryActorTick.Target = this;
+    SetRootComponent(CreateDefaultSubobject<USceneComponent>("DefaultSceneRoot"));
 }
 
 AActor::~AActor()
@@ -133,4 +139,71 @@ bool AActor::Destroy()
         return false;
 
     return World->DestroyActor(this);
+}
+
+UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
+{
+    if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
+    {
+        return nullptr;
+    }
+
+    UActorComponent* NewComponent = NewObject<UActorComponent>(this, ComponentClass, Name);
+    if (!NewComponent)
+    {
+        return nullptr;
+    }
+
+	if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(NewComponent))
+	{
+        World->GetScene().AddPrimitive(Primitive);
+	}
+    
+	if (USceneComponent* SceneComponent = Cast<USceneComponent>(NewComponent))
+	{
+		SceneComponent->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+	}
+
+    NewComponent->SetOwner(this);
+    Components.Add(NewComponent);
+
+    if (UParticleSubUVComponent* ParticleSubUV = Cast<UParticleSubUVComponent>(NewComponent))
+    {
+        ParticleSubUV->BeginPlay();
+        RegisterAllActorTickFunctions(true);
+    }
+
+	return NewComponent;
+}
+
+void AActor::DestroyComponent(UActorComponent* Component)
+{
+    if (!Component)
+        return;
+
+    if (Component == RootComponent)
+    {
+        HTR_LOG(Warning, "DefaultSceneRoot cannot be deleted.");
+        return;
+    }
+
+    if (USceneComponent* Parent = Cast<USceneComponent>(Component))
+    {
+        TArray<USceneComponent*> Children = Parent->GetAttachChildren();
+        for (USceneComponent* Candidate : Children)
+        {
+            if (!Candidate) { continue; }
+
+            Candidate->DetachFromParent(EAttachmentRule::KeepWorld);
+            Candidate->SetupAttachment(Parent->GetAttachParent(), EAttachmentRule::KeepWorld);
+        }
+    }
+
+    if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
+    {
+        World->GetScene().RemovePrimitive(Primitive);
+    }
+    RemoveOwnedComponent(Component);
+    delete Component;
+    return;
 }

@@ -13,7 +13,7 @@ class AParticleActor : public AActor
 
 public:
 	AParticleActor();
-	UParticleSubUVComponent* GetParticleComponent() const;
+	//UParticleSubUVComponent* GetParticleComponent() const;
 
 private:
 	UParticleSubUVComponent* ParticleComponent;

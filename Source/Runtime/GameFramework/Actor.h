@@ -50,11 +50,14 @@ public:
 	template <typename T>
 	T* CreateDefaultSubobject(FName Name)
 	{
-		T* Component = NewObject<T>(this);
+		T* Component = NewObject<T>(this, Name);
 		Component->SetOwner(this);
 		Components.Add(Component);
 		return Component;
 	}
+
+	UActorComponent* AddComponent(UClass* ComponentClass, FName Name);
+	void DestroyComponent(UActorComponent* Component);
 
 	// bCanEverTick이 켜진 액터·컴포넌트의 Tick 함수만 World의 FTickTaskManager에 등록하거나 해제한다.
 	void RegisterAllActorTickFunctions(bool bRegister);
