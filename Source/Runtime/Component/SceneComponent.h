@@ -4,6 +4,13 @@
 #include "ActorComponent.h"
 #include "Math/Box.h"
 
+enum class EAttachmentRule
+{
+	KeepRelative,
+	KeepWorld,
+	SnapToTarget
+};
+
 class USceneComponent : public UActorComponent
 {
 	DECLARE_CLASS(USceneComponent, UActorComponent)
@@ -23,6 +30,7 @@ public:
 		Transform.Location = InLocation;
 		MarkTransformDirty();
 	}
+
 
 	const FRotator& GetRelativeRotation() const { return Transform.Rotation; }
 	void SetRelativeRotation(const FRotator& InRotation) 
@@ -51,8 +59,8 @@ public:
 	// Attatch-To
 	USceneComponent* GetAttachParent() const { return AttachParent; }
 	const TArray<USceneComponent*>& GetAttachChildren() const { return AttachChildren; }
-	void SetupAttachment(USceneComponent* InParent);
-	void DetachFromParent();
+	void SetupAttachment(USceneComponent* InParent, EAttachmentRule Rule = EAttachmentRule::KeepRelative);
+	void DetachFromParent(EAttachmentRule Rule = EAttachmentRule::KeepRelative);
 
 	virtual FBox CalcLocalBounds() const { return FBox{ FVector(), FVector() }; }
 	FBox CalcBounds() const { return CalcLocalBounds().GetWorldAABB(GetWorldMatrix()); }
@@ -67,7 +75,7 @@ public:
 	void SetWorldLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep);
 	void SetWorldScale3D(FVector NewScale);
 	void SetWorldTransform(const FTransform& NewTransform, bool bSweep);
-	
+	void SetWorldTransform(const FMatrix& InWorldMatrix);
 	bool MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep);
 
 	void MarkTransformDirty();

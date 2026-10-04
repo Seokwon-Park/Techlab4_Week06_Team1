@@ -4,7 +4,7 @@
 ABillboardActor::ABillboardActor()
 {
 	BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
-	SetRootComponent(BillboardComponent);
+	BillboardComponent->SetupAttachment(GetRootComponent());
 }
 
 ABillboardActor::~ABillboardActor()

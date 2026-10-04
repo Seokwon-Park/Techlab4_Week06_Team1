@@ -6,18 +6,13 @@
 USceneComponent::~USceneComponent()
 {
 	TArray<USceneComponent*> Children = AttachChildren;
-	AttachChildren.Reset();
+	DetachFromParent();
 	for (USceneComponent* Child : Children)
 	{
-		Child->AttachParent = nullptr;          
-		Child->SetupAttachment(AttachParent);   
+		Child->AttachParent = nullptr;
 	}
-
-	if (AActor* OwnerActor = GetOwner())
-	{
-		if (OwnerActor->GetRootComponent() == this)
-			OwnerActor->SetRootComponent(Children.Num() > 0 ? Children[0] : nullptr);
-	}
+	AttachChildren.Reset();
+}
 
 	DetachFromParent();
 }
@@ -29,7 +24,7 @@ void USceneComponent::SetRelativeLocationAndRotation(const FVector& NewLocation,
 	MarkTransformDirty();
 }
 
-void USceneComponent::SetupAttachment(USceneComponent* InParent)
+void USceneComponent::SetupAttachment(USceneComponent* InParent, EAttachmentRule Rule)
 {
 	if (InParent == this || AttachParent == InParent) return;
 
@@ -37,28 +32,69 @@ void USceneComponent::SetupAttachment(USceneComponent* InParent)
 	for (USceneComponent* Parent = InParent; Parent != nullptr; Parent = Parent->AttachParent)
 		if (Parent == this) return;
 
-	DetachFromParent();
-	AttachParent = InParent;
-	if (AttachParent)
+	if (Rule == EAttachmentRule::KeepWorld)
 	{
-		AttachParent->AttachChildren.Add(this);
+		FMatrix WorldMatrix = GetWorldMatrix();
+		DetachFromParent(Rule);
+		AttachParent = InParent;
+		if (AttachParent)
+		{
+			AttachParent->AttachChildren.Add(this);
+		}
+		SetWorldTransform(WorldMatrix);
 	}
+	else
+	{
+		DetachFromParent(Rule);
+		AttachParent = InParent;
+		if (AttachParent)
+		{
+			AttachParent->AttachChildren.Add(this);
+		}
+	}
+
+	if (Rule == EAttachmentRule::SnapToTarget)
+	{
+		SetTransform(FTransform::Identity);
+	}
+
+	MarkTransformDirty();
 }
 
-void USceneComponent::DetachFromParent()
+void USceneComponent::DetachFromParent(EAttachmentRule Rule)
 {
 	if (!AttachParent) return;
 
-	TArray<USceneComponent*>& Siblings = AttachParent->AttachChildren;
-	for (uint32 i = 0;i < Siblings.Num(); ++i)
+	if (Rule == EAttachmentRule::KeepWorld)
 	{
-		if (Siblings[i] == this)
+		FMatrix WorldMatrix = GetWorldMatrix();
+		TArray<USceneComponent*>& Siblings = AttachParent->AttachChildren;
+		for (uint32 i = 0;i < Siblings.Num(); ++i)
 		{
-			Siblings.RemoveAt(i, 1);
-			break;
+			if (Siblings[i] == this)
+			{
+				Siblings.RemoveAt(i, 1);
+				break;
+			}
 		}
+		AttachParent = nullptr;
+		SetWorldTransform(WorldMatrix);
 	}
-	AttachParent = nullptr;
+	else
+	{
+		TArray<USceneComponent*>& Siblings = AttachParent->AttachChildren;
+		for (uint32 i = 0;i < Siblings.Num(); ++i)
+		{
+			if (Siblings[i] == this)
+			{
+				Siblings.RemoveAt(i, 1);
+				break;
+			}
+		}
+		AttachParent = nullptr;
+	}
+	
+	MarkTransformDirty();
 }
 
 FRotator USceneComponent::GetWorldRotation() const
@@ -107,6 +143,42 @@ FMatrix USceneComponent::GetWorldMatrix() const
 	}
 
 	return LocalMatrix;
+}
+
+
+void USceneComponent::SetWorldTransform(const FMatrix& InWorldMatrix)
+{
+	FMatrix LocalMatrix = InWorldMatrix;
+	if (AttachParent)
+	{
+		FMatrix ParentWorldMatrix = AttachParent->GetWorldMatrix();
+		LocalMatrix = InWorldMatrix * ParentWorldMatrix.Inverse();
+	}
+
+	Transform.Location = FVector(LocalMatrix[3][0], LocalMatrix[3][1], LocalMatrix[3][2]);
+
+	FVector XAxis(LocalMatrix[0][0], LocalMatrix[0][1], LocalMatrix[0][2]);
+	FVector YAxis(LocalMatrix[1][0], LocalMatrix[1][1], LocalMatrix[1][2]);
+	FVector ZAxis(LocalMatrix[2][0], LocalMatrix[2][1], LocalMatrix[2][2]);
+
+	const float XAxisSize = XAxis.Size();
+	const float YAxisSize = YAxis.Size();
+	const float ZAxisSize = ZAxis.Size();
+
+	Transform.Scale = FVector(XAxisSize, YAxisSize, ZAxisSize);
+
+	XAxis = XAxis.Normalized();
+	YAxis = YAxis.Normalized();
+	ZAxis = ZAxis.Normalized();
+
+	FMatrix RotationMatrix = FMatrix::Identity;
+	RotationMatrix.SetAxis(0, XAxis);
+	RotationMatrix.SetAxis(1, YAxis);
+	RotationMatrix.SetAxis(2, ZAxis);
+
+	Transform.Rotation = MatrixToRotator(RotationMatrix);
+		
+	MarkTransformDirty();
 }
 
 void USceneComponent::SetWorldLocation(FVector NewLocation, bool bSweep)
