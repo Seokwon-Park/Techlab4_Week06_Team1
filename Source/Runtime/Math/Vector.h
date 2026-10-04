@@ -28,6 +28,7 @@ public:
 	/* Public Functions */
 	void Set(float x, float y, float z);
 
+	float SizeSquared() const;
 	float Size() const; // 길이 반환
 	float Length() const; // ==  size()
 	float Dot(const FVector& V1) const;

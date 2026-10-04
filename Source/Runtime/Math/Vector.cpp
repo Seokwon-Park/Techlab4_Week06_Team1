@@ -34,6 +34,11 @@ void FVector::Set(float x, float y, float z)
 }
 
 
+float FVector::SizeSquared() const
+{
+	return X * X + Y * Y + Z * Z;
+}
+
 float FVector::Size() const
 {
 	float sum = X * X + Y * Y + Z * Z;

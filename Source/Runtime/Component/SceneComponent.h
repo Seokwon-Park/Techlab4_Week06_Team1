@@ -68,7 +68,7 @@ public:
 	void SetWorldScale3D(FVector NewScale);
 	void SetWorldTransform(const FTransform& NewTransform, bool bSweep);
 	
-	void MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep);
+	bool MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep);
 
 	void MarkTransformDirty();
 	virtual void OnTransformDirty() {};

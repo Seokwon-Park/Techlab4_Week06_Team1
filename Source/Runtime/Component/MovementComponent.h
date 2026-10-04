@@ -13,6 +13,9 @@ protected:
 
 	FVector Velocity;
 
+	// TEMP Physics
+	float Gravity = 9.81f;
+
 public:
 	// ActorComponent  Interface
 	virtual void InitializeComponent() override;

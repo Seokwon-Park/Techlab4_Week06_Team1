@@ -124,6 +124,21 @@ FVector4 FMatrix::TransformFVector4(const FVector4& V) const
 	);
 }
 
+FVector4 FMatrix::TransformFVector4NoScale(const FVector4& V) const
+{
+	FMatrixRegister MReg = FMatrixRegister::Load(*this);
+	MReg = MReg.Transpose();
+
+	FVectorRegister VReg = VectorSIMD::SetVal(V.X, V.Y, V.Z, V.W);			
+
+	return FVector4(
+		VectorSIMD::Dot(VectorSIMD::Normalized(MReg.R[0]), VReg),
+		VectorSIMD::Dot(VectorSIMD::Normalized(MReg.R[1]), VReg),
+		VectorSIMD::Dot(VectorSIMD::Normalized(MReg.R[2]), VReg),
+		VectorSIMD::Dot(MReg.R[3], VReg)
+	);
+}
+
 FVector FMatrix::TransformPosition(const FVector& V) const
 {
 	FVector4 Result = TransformFVector4(FVector4(V.X, V.Y, V.Z, 1.0f));
@@ -133,6 +148,12 @@ FVector FMatrix::TransformPosition(const FVector& V) const
 FVector FMatrix::TransformVector(const FVector& V) const
 {
 	FVector4 Result = TransformFVector4(FVector4(V.X, V.Y, V.Z, 0.0f));
+	return FVector(Result.X, Result.Y, Result.Z);
+}
+
+FVector FMatrix::TransformVectorNoScale(const FVector& V) const
+{
+	FVector4 Result = TransformFVector4NoScale(FVector4(V.X, V.Y, V.Z, 0.0f));
 	return FVector(Result.X, Result.Y, Result.Z);
 }
 
