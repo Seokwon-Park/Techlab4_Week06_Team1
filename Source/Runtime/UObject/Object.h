@@ -10,6 +10,7 @@
 #include "Serialization/StructuredArchiveSlots.h"
 
 class UClass;
+struct FProperty;
 // Property Reflection
 
 #define REFLECT_START(ClassName) \
@@ -107,6 +108,8 @@ public:
 	virtual void Serialize(json& Handle, bool bIsLoading);
 	virtual void Serialize(FArchive& Ar) {};
 	virtual void Serialize(FStructuredArchive::FRecord Record);
+
+	virtual void PostEditChangeProperty(const FProperty& Property) {};
 
 	void* operator new(uint64 Size)
 	{

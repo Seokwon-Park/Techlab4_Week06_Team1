@@ -14,6 +14,16 @@ USceneComponent::~USceneComponent()
 	AttachChildren.Reset();
 }
 
+void USceneComponent::PostEditChangeProperty(const FProperty& Property)
+{
+	Super::PostEditChangeProperty(Property);
+	if (Property.Name == "Transform") 
+		MarkTransformDirty();
+
+
+
+}
+
 void USceneComponent::SetupAttachment(USceneComponent* InParent, EAttachmentRule Rule)
 {
 	if (InParent == this || AttachParent == InParent) return;

@@ -13,6 +13,7 @@
 
 #include "Collision/Ray.h"
 #include "Component/BillboardComponent.h"
+#include "Component/ExponentialHeightFogComponent.h"
 
 #include "Component/StaticMeshComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
@@ -90,6 +91,8 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 	{
 		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
 			Scene.AddPrimitive(Primitive);
+		else if(UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
+			Scene.AddFogInfo(Fog->GetUUID(),Fog->GetFogInfo());
 	}
 
 	// 4. Level->Actors에 등록
@@ -103,6 +106,11 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 
 void UWorld::Tick(float DeltaTime)
 {
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateAllTransforms);
+		Scene.UpdateAllTransforms();
+	}
+
 	// 에디터 월드면 더이상 틱을 돌리지 않는다.
 
 
@@ -126,10 +134,7 @@ void UWorld::Tick(float DeltaTime)
 		}
 	}
 
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateAllTransforms);
-		Scene.UpdateAllTransforms();
-	}
+
 }
 
 void UWorld::ClearWorld()

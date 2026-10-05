@@ -179,14 +179,14 @@ void UBenchmarkEngine::InitEditorTools()
 	OutlinerPanel = EditorUI->AddEditorPanel<FOutlinerPanel>();
 	OutlinerPanel->SetWorld(World);
 	OutlinerPanel->SetSelectionCallback(
-		[this](USceneComponent* Scene) { SelectPrimitive(Cast<UPrimitiveComponent>(Scene)); });
+		[this](USceneComponent* Scene) { SelectScene(Scene); });
 
 	OutlinerPanel->SetDeleteActorCallback(
 		[this](AActor* Actor)
 		{
 			// 선택된 물체를 지우면 선택 표시(UUID·박스)가 해제된 포인터를 읽지 않도록 먼저 비운다.
 			if (UPrimitiveComponent* Selected = GetSelectedPrimitive(); Selected && Selected->GetOwner() == Actor)
-				SelectPrimitive(nullptr);
+				SelectScene(nullptr);
 			World->DestroyActor(Actor);
 		});
 
@@ -194,11 +194,18 @@ void UBenchmarkEngine::InitEditorTools()
 }
 
 // Outliner·Gizmo·Outline·Details의 선택 대상을 한 번에 맞춘다.
-void UBenchmarkEngine::SelectPrimitive(UPrimitiveComponent* Primitive)
+void UBenchmarkEngine::SelectScene(USceneComponent* Root)
 {
-	Gizmo->SetTarget(Primitive);
+	Gizmo->SetTarget(Root);
+
+	UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Root);
+	if (!Primitive && Root && Root->GetOwner())
+	{
+		for (UActorComponent* C : Root->GetOwner()->GetComponents())
+			if ((Primitive = Cast<UPrimitiveComponent>(C))) break;
+	}
 	Outline->SetTarget(Primitive);
-	DetailsPanel->SetTarget(Primitive ? Primitive->GetOwner() : nullptr);
+	DetailsPanel->SetTarget(Root ? Root->GetOwner() : nullptr);
 }
 
 UPrimitiveComponent* UBenchmarkEngine::GetSelectedPrimitive() const
@@ -271,7 +278,7 @@ void UBenchmarkEngine::UpdateGizmoAndPicking()
 		!Gizmo->IsUsing() && Gizmo->GetHoveredAxis() < 0)
 	{
 		FHitResult Hit;
-		SelectPrimitive(World->LineTraceSingle(Ray, Hit) ? Hit.HitComponent : nullptr);
+		SelectScene(World->LineTraceSingle(Ray, Hit) ? Hit.HitComponent : nullptr);
 	}
 }
 

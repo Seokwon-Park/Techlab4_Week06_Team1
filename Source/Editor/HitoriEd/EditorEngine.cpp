@@ -103,6 +103,10 @@ bool UEditorEngine::Init()
 
 	Gizmo = MakeUnique<FGizmo>();
 
+	FogRenderer = MakeUnique<FFogRenderer>();
+	FogRenderer->Init(Renderer);
+
+
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
 	DetailsPanel = EditorUI->AddEditorPanel<FDetailsPanel>();
 	EditorControlsPanel = EditorUI->AddEditorPanel<FEditorControlsPanel>();
@@ -145,13 +149,19 @@ bool UEditorEngine::Init()
 	OutlinerPanel = EditorUI->AddEditorPanel<FOutlinerPanel>();
 	OutlinerPanel->SetWorld(GetActiveWorld());
 	OutlinerPanel->SetSelectionCallback(
-		[this](USceneComponent* Scene)
+		[this](USceneComponent* Root)
 		{
-			Gizmo->SetTarget(Scene);
-			Outline->SetTarget(Cast<UPrimitiveComponent>(Scene));
-			DetailsPanel->SetTarget(Scene ? Scene->GetOwner() : nullptr);
-		}
-	);
+			Gizmo->SetTarget(Root);
+			DetailsPanel->SetTarget(Root ? Root->GetOwner() : nullptr);
+
+			UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Root);
+			if (!Primitive && Root && Root->GetOwner())
+			{
+				for (UActorComponent* C : Root->GetOwner()->GetComponents())
+					if ((Primitive = Cast<UPrimitiveComponent>(C))) break;
+			}
+			Outline->SetTarget(Primitive);
+		});
 	DetailsPanel->SetSelectionCallback(
 		[this](USceneComponent* SceneComponent)
 		{
@@ -304,6 +314,9 @@ void UEditorEngine::RenderMultipleViewports()
 			MultipleViewportsAdapter.GetEngineCameraLocation(ViewIndex),
 			MultipleViewportsAdapter.GetEngineCameraForward(ViewIndex),
 			RenderQueue);
+
+		
+
 	}
 
 	EMultipleViewportsCameraPreset CameraPresets[4]{};
@@ -352,6 +365,212 @@ FWorldContext* UEditorEngine::GetPIEWorldContext(int32 WorldPIEInstance)
 }
 
 // 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
+void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
+{
+	RenderCommand::BeginRenderPass(ViewRenderingInfo);
+
+	const bool bDrawPrimitives = SettingsPanel->GetSettings().bDrawPrimitives;
+	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
+	const ERasterizerState SceneRasterizerState = MultipleViewportsAdapter.IsViewWireframe(ViewIndex)
+		? ERasterizerState::Wireframe : ERasterizerState::SolidBack;
+
+	// 렌더 루프 — 반드시 RenderAll보다 먼저
+	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
+	if (bDrawPrimitives)
+	{
+		RenderCommand::SetRasterizerState(SceneRasterizerState);
+		RenderCommand::SetBlendState(EBlendState::Opaque);
+		RenderCommand::SetDepthStencilState(EDepthStencilState::Default);
+
+		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
+		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
+		Renderer->RenderOpaque(ViewProjection);
+		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
+		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+	}
+
+
+
+	if (bDrawPrimitives)
+	{
+		// Grid 파이프라인이 바꾼 상태를 장면 기준으로 되돌린 뒤 반투명을 먼 것부터 그린다.
+		RenderCommand::SetRasterizerState(SceneRasterizerState);
+		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		Renderer->RenderTranslucent(ViewProjection);
+		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
+	}
+
+	
+
+	RenderCommand::EndRenderPass(ViewRenderingInfo);
+}
+
+void UEditorEngine::RenderFogPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation,const FMatrix& ViewProjection, FRenderQueue& RenderQueue)
+{
+	
+	const TArray<FExponentialHeightFogSceneInfo>& SceneFogInfos = GetActiveWorld()->GetScene().FogInfos;
+
+	if (SceneFogInfos.Num() == 0)
+		return;
+	
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+
+	//Load는 기존 내용을 그대로 두고 그 위에 그림을 그린다는뜻
+	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
+		Color.LoadOp = ERenderTargetLoadOp::Load;
+
+	PassInfo.DepthStencil.Texture = nullptr;
+	RenderCommand::BeginRenderPass(PassInfo);
+
+	FogRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, SceneFogInfos[0].FogInfo);
+	
+	//Fog는 여러개있더라도 1개의 Fog만 인식해서 그리도록 해야한다.
+
+	RenderCommand::EndRenderPass(PassInfo);
+}
+
+void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
+{
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+
+	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
+		Color.LoadOp = ERenderTargetLoadOp::Load;
+
+	PassInfo.DepthStencil.LoadOp = ERenderTargetLoadOp::Load;
+
+
+	RenderCommand::BeginRenderPass(PassInfo);
+
+	if (SettingsPanel->GetSettings().bDrawBatchLine)
+	{
+		// 라인 배처는 매 프레임 한 번만 비우고 한 번만 그린다.
+		// 바운딩박스는 그 안에 쌓이는 여러 항목 중 하나일 뿐이다.
+		LineBatcher->BeginFrame();
+
+		if (SettingsPanel->GetSettings().bDrawBoundingBox)
+		{
+			LineBatcher->BuildVertexBuffer();
+			GetActiveWorld()->GetPathTracker().OnRender(LineBatcher.get());
+		}
+
+		// 선택된 액터가 라이트면 원뿔을 같이 쌓는다
+		if (Gizmo->GetTarget())
+		{
+			if (ALightActor* LightActor = Cast<ALightActor>(Gizmo->GetTarget()->GetOwner()))
+			{
+				LightActor->GetSpotLightComponent()->DrawDebug(LineBatcher.get());
+			}
+		}
+
+		LineBatcher->OnRender(ViewProjection);
+	}
+
+	//그리드
+	//TODO : 그리드도 안개가 적용되어야하나..?
+	if (SettingsPanel->GetSettings().bDrawBatchLine)
+	{
+		const EGridPlane GridPlane = MultipleViewportsAdapter.GetGridPlane(ViewIndex);
+
+		if (SettingsPanel->GetSettings().bDrawPSGrid && !MultipleViewportsAdapter.IsOrthographic(ViewIndex))
+		{
+			GridRenderer->OnRenderPSGrid(
+				ViewProjection, ViewCameraLocation, SettingsPanel->GetSettings(), PassInfo.ViewportSetting
+			);
+		}
+		else
+		{
+			GridRenderer->OnRenderBatchGrid(
+				ViewProjection,
+				ViewCameraLocation,
+				ViewCameraForward,
+				GridPlane,
+				static_cast<float>(SettingsPanel->GetSettings().GridSpacing),
+				!MultipleViewportsAdapter.IsOrthographic(ViewIndex) ||
+				MultipleViewportsAdapter.GetCameraPreset(ViewIndex) == EMultipleViewportsCameraPreset::OrthographicView,
+				PassInfo.ViewportSetting
+			);
+		}
+	}
+
+	// TextRenderComponent 렌더링
+	for (TObjectIterator<UTextRenderComponent> TextComponent; TextComponent; ++TextComponent)
+	{
+		if (!TextComponent || !TextComponent->GetFont() || !TextComponent->IsVisible())
+		{
+			continue;
+		}
+
+		TextRenderer->OnRender(
+			TextComponent->GetText(),
+			TextComponent->GetWorldMatrix(),
+			TextComponent->GetTextSize(),
+			*TextComponent->GetFont(),
+			ViewProjection
+		);
+	}
+
+	// 스텐실 기반이라 선택 대상의 가시성이 꺼져 있어도 외곽선만 그린다.
+	if (Outline->GetTarget())
+	{
+		OutlineRenderer->OnRender(*Outline, ViewProjection, PassInfo.ViewportSetting);
+	}
+
+	if (Gizmo->GetTarget())
+	{
+		//auto Target = Cast<UPrimitiveComponent>(Gizmo->GetTarget());
+		//FBox box = Target->CalcBounds();
+
+		RenderCommand::ClearDepthStencil(ViewRenderingInfo.DepthStencil.Texture);
+
+		GizmoRenderer->OnRender(
+			*Gizmo,
+			ViewProjection,
+			ViewCameraLocation,
+			MultipleViewportsAdapter.IsOrthographic(ViewIndex));
+	}
+
+	RenderCommand::ClearDepthStencil(PassInfo.DepthStencil.Texture);
+
+	if (SettingsPanel->GetSettings().bShowUUID)
+	{
+		for (AActor* Actor : GetActiveWorld()->GetPersistentLevel()->GetActors())
+		{
+			if (!Actor)
+				continue;
+
+			UPrimitiveComponent* Primitive =
+				Cast<UPrimitiveComponent>(Actor->GetRootComponent());
+
+			if (!Primitive)
+				continue;
+
+			FBox Box =
+				Primitive->CalcBounds();
+
+			FVector UUIDLocation;
+			UUIDLocation.X = (Box.Min.X + Box.Max.X) * 0.5f;
+			UUIDLocation.Y = (Box.Min.Y + Box.Max.Y) * 0.5f;
+			UUIDLocation.Z = Box.Max.Z + 0.5f;
+
+			FString Text =
+				"UUID : " + std::to_string(Actor->GetUUID());
+
+			TextRenderer->BuildTextMesh(
+				Text,
+				0.5f,
+				*SystemFont
+			);
+
+			const FMatrix BillboardWorld = MultipleViewportsAdapter.BuildEngineBillboardMatrix(ViewIndex, UUIDLocation, 1.0f, 1.0f);
+			TextRenderer->OnRender(Text, BillboardWorld, 0.5f, *SystemFont, ViewProjection);
+		}
+	}
+
+	RenderCommand::EndRenderPass(PassInfo);
+}
+
+// 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
 void UEditorEngine::UpdateGizmoAndPicking()
 {
 	// Delete는 BeginFrame에서 한 번만 처리하고 여기서는 View 입력만 다룬다.
@@ -392,164 +611,19 @@ void UEditorEngine::UpdateGizmoAndPicking()
 // View 행렬로 Scene·Grid·Gizmo·텍스트·Outline을 렌더한다.
 void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
-	RenderCommand::BeginRenderPass(ViewRenderingInfo);
-	if (SettingsPanel->GetSettings().bDrawBatchLine)
-	{
-		// 라인 배처는 매 프레임 한 번만 비우고 한 번만 그린다.
-		// 바운딩박스는 그 안에 쌓이는 여러 항목 중 하나일 뿐이다.
-		LineBatcher->BeginFrame();
+	// 1. 불투명 Pass
+	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
-		if (SettingsPanel->GetSettings().bDrawBoundingBox)
-		{
-			LineBatcher->BuildVertexBuffer();
-			GetActiveWorld()->GetPathTracker().OnRender(LineBatcher.get());
-		}
-
-		// 선택된 액터가 라이트면 원뿔을 같이 쌓는다
-		if (Gizmo->GetTarget())
-		{
-			if (ALightActor* LightActor = Cast<ALightActor>(Gizmo->GetTarget()->GetOwner()))
-			{
-				LightActor->GetSpotLightComponent()->DrawDebug(LineBatcher.get());
-			}
-		}
-
-		LineBatcher->OnRender(ViewProjection);
-
-	}
-
-	const bool bDrawPrimitives = SettingsPanel->GetSettings().bDrawPrimitives;
-	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
-	const ERasterizerState SceneRasterizerState = MultipleViewportsAdapter.IsViewWireframe(ViewIndex)
-		? ERasterizerState::Wireframe : ERasterizerState::SolidBack;
-
-	// 렌더 루프 — 반드시 RenderAll보다 먼저
-	SkyboxRenderer->OnRender(ViewProjection, ViewCameraLocation);
-	if (bDrawPrimitives)
-	{
-		RenderCommand::SetRasterizerState(SceneRasterizerState);
-		RenderCommand::SetBlendState(EBlendState::Opaque);
-		RenderCommand::SetDepthStencilState(EDepthStencilState::Default);
-
-		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		// 반투명은 Grid 뒤에 합성되어야 하므로 불투명만 먼저 그린다.
-		Renderer->RenderQueueSorting(RenderQueue, ViewProjection);
-		Renderer->RenderOpaque(ViewProjection);
-		// 장면 Wireframe이 Grid·Gizmo·UI로 전파되지 않도록 복원한다.
-		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
-	}
-
-	if (SettingsPanel->GetSettings().bDrawBatchLine)
-	{
-		const EGridPlane GridPlane = MultipleViewportsAdapter.GetGridPlane(ViewIndex);
-
-		if (SettingsPanel->GetSettings().bDrawPSGrid && !MultipleViewportsAdapter.IsOrthographic(ViewIndex))
-		{
-			GridRenderer->OnRenderPSGrid(
-				ViewProjection, ViewCameraLocation, SettingsPanel->GetSettings(), ViewRenderingInfo.ViewportSetting
-			);
-		}
-		else
-		{
-			GridRenderer->OnRenderBatchGrid(
-				ViewProjection,
-				ViewCameraLocation,
-				ViewCameraForward,
-				GridPlane,
-				static_cast<float>(SettingsPanel->GetSettings().GridSpacing),
-				!MultipleViewportsAdapter.IsOrthographic(ViewIndex) ||
-				MultipleViewportsAdapter.GetCameraPreset(ViewIndex) == EMultipleViewportsCameraPreset::OrthographicView,
-				ViewRenderingInfo.ViewportSetting
-			);
-		}
-	}
-
-	if (bDrawPrimitives)
-	{
-		// Grid 파이프라인이 바꾼 상태를 장면 기준으로 되돌린 뒤 반투명을 먼 것부터 그린다.
-		RenderCommand::SetRasterizerState(SceneRasterizerState);
-		RenderCommand::SetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		Renderer->RenderTranslucent(ViewProjection);
-		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
-	}
-
-	// TextRenderComponent 렌더링
-	for (TObjectIterator<UTextRenderComponent> TextComponent; TextComponent; ++TextComponent)
-	{
-		if (!TextComponent || !TextComponent->GetFont() || !TextComponent->IsVisible())
-		{
-			continue;
-		}
-
-		TextRenderer->OnRender(
-			TextComponent->GetText(),
-			TextComponent->GetWorldMatrix(),
-			TextComponent->GetTextSize(),
-			*TextComponent->GetFont(),
-			ViewProjection
-		);
-	}
-
-	// 스텐실 기반이라 선택 대상의 가시성이 꺼져 있어도 외곽선만 그린다.
-	if (Outline->GetTarget())
-	{
-		OutlineRenderer->OnRender(*Outline, ViewProjection, ViewRenderingInfo.ViewportSetting);
-	}
-
-	if (Gizmo->GetTarget())
-	{
-		//auto Target = Cast<UPrimitiveComponent>(Gizmo->GetTarget());
-		//FBox box = Target->CalcBounds();
-
-		RenderCommand::ClearDepthStencil(ViewRenderingInfo.DepthStencil.Texture);
-
-		GizmoRenderer->OnRender(
-			*Gizmo,
-			ViewProjection,
-			ViewCameraLocation,
-			MultipleViewportsAdapter.IsOrthographic(ViewIndex));
-	}
-
-	RenderCommand::ClearDepthStencil(ViewRenderingInfo.DepthStencil.Texture);
-
-	if (SettingsPanel->GetSettings().bShowUUID)
-	{
-		for (AActor* Actor : GetActiveWorld()->GetPersistentLevel()->GetActors())
-		{
-			if (!Actor)
-				continue;
-
-			UPrimitiveComponent* Primitive =
-				Cast<UPrimitiveComponent>(Actor->GetRootComponent());
-
-			if (!Primitive)
-				continue;
-
-			FBox Box =
-				Primitive->CalcBounds();
-
-			FVector UUIDLocation;
-			UUIDLocation.X = (Box.Min.X + Box.Max.X) * 0.5f;
-			UUIDLocation.Y = (Box.Min.Y + Box.Max.Y) * 0.5f;
-			UUIDLocation.Z = Box.Max.Z + 0.5f;
-
-			FString Text =
-				"UUID : " + std::to_string(Actor->GetUUID());
-
-			TextRenderer->BuildTextMesh(
-				Text,
-				0.5f,
-				*SystemFont
-			);
-
-			const FMatrix BillboardWorld = MultipleViewportsAdapter.BuildEngineBillboardMatrix(ViewIndex, UUIDLocation, 1.0f, 1.0f);
-			TextRenderer->OnRender(Text, BillboardWorld, 0.5f, *SystemFont, ViewProjection);
-		}
-	}
+	//직교인 경우 안개 Pass를 그리지 않는다.
+	if(!MultipleViewportsAdapter.IsOrthographic(ViewIndex))
+	// 2. 안개 Pass
+		RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
 
 
+	// 3. 오버레이 Pass
+	RenderOverlayPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
-	RenderCommand::EndRenderPass(ViewRenderingInfo);
+
 }
 
 
