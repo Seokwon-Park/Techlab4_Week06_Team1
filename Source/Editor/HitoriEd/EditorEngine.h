@@ -27,6 +27,9 @@
 
 #include "Render/SkyboxRenderer.h"
 
+#include "PlayInEditorDataTypes.h"
+#include "Core/Misc/Optional.h"
+
 //Temp
 #include "Text/Font.h"
 #include "Text/TextRenderer.h"
@@ -48,6 +51,23 @@ public:
 	// 네 View 결과와 ImGui를 메인 Swapchain 백버퍼에 합성한다. Present는 FEngineLoop가 한다.
 	void PresentFrame();
 	void DeleteActor(AActor* Actor);
+
+	//Play 버튼을 눌렀을때 Play Session 실행을 요청한다.
+	inline void RequestPlaySession() { bPlaySessionRequested = true; }
+	inline void RequestEndPlayMap() { bRequestEndPlayMapQueued = true; }
+
+	//실제 PIE 를 실행
+	void StartPlayInEditorSession();
+	UWorld* CreatePIEWorldByDuplication(FWorldContext& PIEContext, UWorld* InEditorWorld);
+
+	void OnActiveWorldChanged() {};
+
+	void EndPlayMap();
+
+	////FEditorDelegates::PrePIEEnded / EndPIE.Broadcast()
+	//void TeardownPlaySession(const FWorldContext& PIEContext);            // 액터 EndPlay, 월드 정리(CleanupWorld)
+	//void RestoreEditorWorld(UWorld* EditorWorld);            // GWorld를 에디터 월드로 복구
+	//void DestroyWorldContext(UWorld* PlayWorld);
 
 private:
 	// 이번 프레임 DeltaTime을 패널에 전달하고 에디터 단축키를 처리한다.
@@ -97,6 +117,9 @@ private:
 
 	UWorld* EditorWorld = nullptr;
 	UWorld* PlayWorld = nullptr;
+
+	bool bPlaySessionRequested = true;
+	bool bRequestEndPlayMapQueued = true;
 
 	void ResetSceneSelection();
 

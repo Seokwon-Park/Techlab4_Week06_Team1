@@ -652,7 +652,18 @@ namespace
 		for (auto It = ClassChain.rbegin(); It != ClassChain.rend(); ++It)
 		{
 			UClass* Class = *It;
-			if (Class->GetProperties().IsEmpty())
+
+			// 노출할 프로퍼티가 하나도 없으면 헤더도 그리지 않는다
+			bool bHasVisibleProperty = false;
+			for (const FProperty& Property : Class->GetProperties())
+			{
+				if (Property.HasAnyFlags(CPF_Edit))
+				{
+					bHasVisibleProperty = true;
+					break;
+				}
+			}
+			if (!bHasVisibleProperty)
 			{
 				continue;
 			}
@@ -662,7 +673,15 @@ namespace
 			{
 				for (const FProperty& Property : Class->GetProperties())
 				{
+					if (!Property.HasAnyFlags(CPF_Edit))
+					{
+						continue;
+					}
+
+					const bool bReadOnly = Property.HasAnyFlags(CPF_EditConst);
+					if (bReadOnly) ImGui::BeginDisabled();
 					DrawProperty(Object, Property, CustomFont);
+					if (bReadOnly) ImGui::EndDisabled();
 				}
 			}
 			ImGui::PopID();
@@ -708,6 +727,11 @@ void FDetailsPanel::OnRender()
 		{
 			for (UActorComponent* Component : Owner->GetComponents())
 			{
+				if (Component->IsHiddenInDetails())
+				{
+					continue;
+				}
+
 				// 같은 클래스를 상속한 컴포넌트가 여럿이면 헤더 ID가 겹치므로 분리한다
 				ImGui::PushID(Component);
 				DrawProperties(Component, CustomFont);

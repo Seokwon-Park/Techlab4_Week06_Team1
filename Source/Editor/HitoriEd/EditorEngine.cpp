@@ -578,6 +578,23 @@ void UEditorEngine::DeleteActor(AActor* Actor)
 	Actor->Destroy();
 }
 
+void UEditorEngine::StartPlayInEditorSession()
+{
+	FWorldContext& PIEContext = CreateNewWorldContext(EWorldType::PIE);
+	PlayWorld = CreatePIEWorldByDuplication(PIEContext, EditorWorld);
+	
+	OnActiveWorldChanged();
+}
+
+UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext& PIEContext, UWorld* InEditorWorld)
+{
+	UWorld* NewPIEWorld = UWorld::CreateWorld(EWorldType::PIE, false);
+	NewPIEWorld->SetWorldType(EWorldType::PIE);
+
+	return NewPIEWorld;
+}
+
+
 // 씬 변경으로 무효화된 에디터의 선택 참조를 모두 해제한다.
 void UEditorEngine::ResetSceneSelection()
 {
