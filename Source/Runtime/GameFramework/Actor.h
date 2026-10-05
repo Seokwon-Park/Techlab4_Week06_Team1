@@ -1,11 +1,11 @@
 #pragma once
 
-#include "ObjectSystem/Object.h"
+#include "UObject/Object.h"
 #include "Component/PrimitiveComponent.h"
 
-#include "ObjectSystem/Class.h"
-#include "ObjectSystem/ObjectFactory.h"
-#include "../Container/Set.h"
+#include "UObject/Class.h"
+#include "UObject/UObjectGlobals.h"
+#include "Containers/Set.h"
 #include "Engine/EngineBaseTypes.h"
 
 class UWorld;
@@ -23,6 +23,7 @@ public:
 	virtual void BeginPlay(); // xx World->AddPrimitive 책임이동 필요
 	// 액터 자신의 로직. 컴포넌트는 각자의 PrimaryComponentTick으로 따로 실행된다.
 	virtual void Tick(float DeltaTime) {}
+	virtual void EndPlay() {};
 	// FActorTickFunction이 호출하는 진입점
 	void TickActor(float DeltaTime) { Tick(DeltaTime); }
 
@@ -49,11 +50,14 @@ public:
 	template <typename T>
 	T* CreateDefaultSubobject(FName Name)
 	{
-		T* Component = CastChecked<T>(FObjectFactory::ConstructObject(T::StaticClass(), this, Name));
+		T* Component = NewObject<T>(this, Name);
 		Component->SetOwner(this);
 		Components.Add(Component);
 		return Component;
 	}
+
+	UActorComponent* AddComponent(UClass* ComponentClass, FName Name);
+	void DestroyComponent(UActorComponent* Component);
 
 	// bCanEverTick이 켜진 액터·컴포넌트의 Tick 함수만 World의 FTickTaskManager에 등록하거나 해제한다.
 	void RegisterAllActorTickFunctions(bool bRegister);
@@ -68,9 +72,6 @@ protected:
 
 	UWorld* World = nullptr;
 	ULevel* Level = nullptr;
-
 private:
-
-	
 
 };

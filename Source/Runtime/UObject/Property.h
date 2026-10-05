@@ -38,14 +38,14 @@ DEFINE_PROPERTY_TYPE(FVector4, Vector4)
 DEFINE_PROPERTY_TYPE(FTransform, Transform)
 DEFINE_PROPERTY_TYPE(FRotator, Rotator)
 
-<<<<<<< HEAD:Source/Runtime/ObjectSystem/Property.h
+<<<<<<<< HEAD:Source/Runtime/ObjectSystem/Property.h
 //DragFloat, DragInt, DragFloat3, DragFloat4, ColorEdit4 등 ImGui 위젯과 관련된 메타데이터를 저장하는 구조체
 struct FProPertyWidgetMeta
 {
 	float MinValue;
 	float MaxValue;
     float delta;
-=======
+========
 // 프로퍼티 지정자 (UE의 UPROPERTY 지정자에 대응)
 enum EPropertyFlags : uint32
 {
@@ -57,7 +57,7 @@ enum EPropertyFlags : uint32
     CPF_EditAnywhere    = CPF_Edit,
     CPF_VisibleAnywhere = CPF_Edit | CPF_EditConst,
     CPF_Default         = CPF_EditAnywhere,
->>>>>>> origin/main:Source/Runtime/UObject/Property.h
+>>>>>>>> main:Source/Runtime/UObject/Property.h
 };
 
 struct FProperty

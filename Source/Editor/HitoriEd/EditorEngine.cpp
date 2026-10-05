@@ -8,7 +8,6 @@
 #include "Core/StatOverlay.h"
 #include "Input/InputSystem.h"
 
-#include "ObjectSystem/ObjectFactory.h"
 
 #include "Render/GeometryGenerator.h"
 
@@ -67,6 +66,10 @@ bool UEditorEngine::Init()
 	if (!Super::Init())
 		return false;
 
+	FWorldContext& InitialWorldContext = CreateNewWorldContext(EWorldType::Editor);
+	InitialWorldContext.SetCurrentWorld(UWorld::CreateWorld(EWorldType::Editor, true));
+	EditorWorld = InitialWorldContext.World();
+
 	MainWindow = GetEngineLoop().GetMainWindow();
 	MainWindowSC = GetEngineLoop().GetSwapchain();
 	Renderer = GetEngineLoop().GetRenderer();
@@ -124,7 +127,7 @@ bool UEditorEngine::Init()
 	TextRenderer->Init();
 
 	// 투영 행렬 생성 
-	MultipleViewportsAdapter.InitializeFromWorld(*World);
+	MultipleViewportsAdapter.InitializeFromWorld(*GetActiveWorld());
 	// 화면 나눔 비율 설정 가져오기
 	MultipleViewportsAdapter.SetSplitRatio({
 		SettingsPanel->GetSettings().MultipleViewportsHorizontal,
@@ -137,14 +140,14 @@ bool UEditorEngine::Init()
 		SettingsPanel->GetSettings().bMultipleViewportsSingle
 		? ELayoutMode::Single
 		: ELayoutMode::QuadSplit);
-	World->GetMainCamera()->GetCameraComponent()->SetExternalInputManaged(true);
+	GetActiveWorld()->GetMainCamera()->GetCameraComponent()->SetExternalInputManaged(true);
 
 	/// 삭제 예정
 	//SceneManager = EditorUI->AddEditorPanel<FSceneManager>();
 	//SceneManager->SetWorld(World);
 
 	OutlinerPanel = EditorUI->AddEditorPanel<FOutlinerPanel>();
-	OutlinerPanel->SetWorld(World);
+	OutlinerPanel->SetWorld(GetActiveWorld());
 	OutlinerPanel->SetSelectionCallback(
 		[this](USceneComponent* Root)
 		{
@@ -166,17 +169,23 @@ bool UEditorEngine::Init()
 			DeleteActor(Actor);
 		}
 	);
+	DetailsPanel->SetDeleteComponentCallback(
+		[this](UActorComponent* Component)
+		{
+			DeleteComponent(Component);
+		}
+	);
 
 	LineBatcher = MakeUnique<FLineBatcher>();
-	LineBatcher->Init(Renderer, World);
+	LineBatcher->Init(Renderer, GetActiveWorld());
 
-	DetailsPanel->SetWorld(World);
+	DetailsPanel->SetWorld(GetActiveWorld());
 
-	EditorControlsPanel->SetWorld(World);
+	EditorControlsPanel->SetWorld(GetActiveWorld());
 	EditorControlsPanel->SetGizmo(Gizmo.get());
 	EditorControlsPanel->SetViewportAdapter(&MultipleViewportsAdapter);
 
-	SettingsPanel->SetWorld(World);
+	SettingsPanel->SetWorld(GetActiveWorld());
 	SettingsPanel->SetViewportAdapter(&MultipleViewportsAdapter);
 	ViewportsPanel->SetViewportAdapter(&MultipleViewportsAdapter);
 
@@ -264,7 +273,7 @@ void UEditorEngine::TickWorldAndEditor(const float DeltaTime)
 	// 월드 상태는 프레임마다 정확히 한 번 갱신하고 캡처한다.
 	{
 		SCOPE_CYCLE_COUNTER(STAT_WorldTick);
-		World->Tick(DeltaTime);
+		GetActiveWorld()->Tick(DeltaTime);
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_EditorTick);
@@ -272,7 +281,7 @@ void UEditorEngine::TickWorldAndEditor(const float DeltaTime)
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
-		MultipleViewportsAdapter.CaptureWorld(*World);
+		MultipleViewportsAdapter.CaptureWorld(*GetActiveWorld());
 	}
 	UpdateGizmoAndPicking();
 }
@@ -323,6 +332,33 @@ void UEditorEngine::EndFrame()
 	FStatRegistry::EndFrame();
 }
 
+FWorldContext& UEditorEngine::GetEditorWorldContext()
+{
+	for (int32 i = 0; i < WorldList.Num(); ++i)
+	{
+		if (WorldList[i].WorldType == EWorldType::Editor)
+		{
+			return WorldList[i];
+		}
+	}
+
+	return CreateNewWorldContext(EWorldType::Editor);
+}
+
+FWorldContext* UEditorEngine::GetPIEWorldContext(int32 WorldPIEInstance)
+{
+	for (FWorldContext& WorldContext : WorldList)
+	{
+		if (WorldContext.WorldType == EWorldType::PIE)
+		{
+			return &WorldContext;
+		}
+	}
+
+	return nullptr;
+}
+
+// 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
 void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
 	RenderCommand::BeginRenderPass(ViewRenderingInfo);
@@ -409,7 +445,7 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 		if (SettingsPanel->GetSettings().bDrawBoundingBox)
 		{
 			LineBatcher->BuildVertexBuffer();
-			World->GetPathTracker().OnRender(LineBatcher.get());
+			GetActiveWorld()->GetPathTracker().OnRender(LineBatcher.get());
 		}
 
 		// 선택된 액터가 라이트면 원뿔을 같이 쌓는다
@@ -476,7 +512,10 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 
 	if (Gizmo->GetTarget())
 	{
-		RenderCommand::ClearDepthStencil(PassInfo.DepthStencil.Texture);
+		//auto Target = Cast<UPrimitiveComponent>(Gizmo->GetTarget());
+		//FBox box = Target->CalcBounds();
+
+		RenderCommand::ClearDepthStencil(ViewRenderingInfo.DepthStencil.Texture);
 
 		GizmoRenderer->OnRender(
 			*Gizmo,
@@ -489,7 +528,7 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 
 	if (SettingsPanel->GetSettings().bShowUUID)
 	{
-		for (AActor* Actor : World->GetPersistentLevel()->GetActors())
+		for (AActor* Actor : GetActiveWorld()->GetPersistentLevel()->GetActors())
 		{
 			if (!Actor)
 				continue;
@@ -614,9 +653,37 @@ void UEditorEngine::DeleteActor(AActor* Actor)
 		return;
 
 	OutlinerPanel->SelectActor(nullptr);
+	DetailsPanel->SelectComponent(nullptr);
 
 	Actor->Destroy();
 }
+
+void UEditorEngine::DeleteComponent(UActorComponent* Component)
+{
+	if (!Component)
+		return;
+
+	DetailsPanel->SelectComponent(nullptr);
+	Outline->SetTarget(nullptr);
+	Component->GetOwner()->DestroyComponent(Component);
+}
+
+void UEditorEngine::StartPlayInEditorSession()
+{
+	FWorldContext& PIEContext = CreateNewWorldContext(EWorldType::PIE);
+	PlayWorld = CreatePIEWorldByDuplication(PIEContext, EditorWorld);
+	
+	OnActiveWorldChanged();
+}
+
+UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext& PIEContext, UWorld* InEditorWorld)
+{
+	UWorld* NewPIEWorld = UWorld::CreateWorld(EWorldType::PIE, false);
+	NewPIEWorld->SetWorldType(EWorldType::PIE);
+
+	return NewPIEWorld;
+}
+
 
 // 씬 변경으로 무효화된 에디터의 선택 참조를 모두 해제한다.
 void UEditorEngine::ResetSceneSelection()
@@ -630,7 +697,7 @@ void UEditorEngine::ResetSceneSelection()
 // 새 씬 생성이 성공하면 에디터 선택 상태를 초기화한다.
 void UEditorEngine::CreateNewScene()
 {
-	if (!FEditorFileUtils::NewScene(World))
+	if (!FEditorFileUtils::NewScene(EditorWorld))
 		return;
 
 	ResetSceneSelection();
@@ -639,7 +706,7 @@ void UEditorEngine::CreateNewScene()
 // 씬 불러오기가 성공하면 에디터 선택 상태를 초기화한다.
 void UEditorEngine::OpenScene()
 {
-	if (!FEditorFileUtils::LoadScene(World))
+	if (!FEditorFileUtils::LoadScene(EditorWorld))
 		return;
 
 	ResetSceneSelection();
@@ -648,11 +715,11 @@ void UEditorEngine::OpenScene()
 // 공통 파일 유틸리티로 현재 씬을 저장한다.
 void UEditorEngine::SaveCurrentScene()
 {
-	FEditorFileUtils::SaveScene(World);
+	FEditorFileUtils::SaveScene(EditorWorld);
 }
 
 // 공통 파일 유틸리티로 새 경로에 씬을 저장한다.
 void UEditorEngine::SaveSceneAs()
 {
-	FEditorFileUtils::SaveSceneAs(World);
+	FEditorFileUtils::SaveSceneAs(EditorWorld);
 }

@@ -6,12 +6,16 @@
 #include "Component/PrimitiveComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Component/TextRenderComponent.h"
+#include "Component/ParticleSubUVComponent.h"
+#include "Component/SpotLightComponent.h"
 #include "Asset/AssetManager.h"
 #include "Render/Material.h"
 #include "Render/Texture2D.h"
 #include "Text/Font.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/Actor.h"
+#include "Core/EngineLog.h"
+
 
 namespace
 {
@@ -441,7 +445,7 @@ namespace
 							Effective = Override;
 						}
 					}
-					
+
 					ImGui::TableNextRow();
 
 					// 4: UV Scroll Speed
@@ -605,9 +609,26 @@ namespace
 			FTransform* Value = static_cast<FTransform*>(ValuePtr);
 
 			ImGui::NewLine();
-			bChanged = DrawVector3Controller("Location", Value->Location.V, 0.0f, 55.0f);
-			bChanged |= DrawRotatorAsXYZ("Rotation", Value->Rotation);
-			bChanged |= DrawVector3Controller("Scale", Value->Scale.V, 1.0f, 55.0f);
+
+			FTransform Transform = *Value;
+			bool bChange = false;
+
+			bChange |= DrawVector3Controller("Location", Transform.Location.V, 0.0f, 55.0f);
+			bChange |= DrawRotatorAsXYZ("Rotation", Transform.Rotation);
+			bChange |= DrawVector3Controller("Scale", Transform.Scale.V, 1.0f, 55.0f);
+
+			if (bChange)
+			{
+				// 씬 컴포넌트면 SetTransform을 거치고, 아니면 값을 직접 쓴다
+				if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+				{
+					SceneComponent->SetTransform(Transform);
+				}
+				else
+				{
+					*Value = Transform;
+				}
+			}
 			break;
 		}
 		case EPropertyType::Object:
@@ -657,7 +678,18 @@ namespace
 		for (auto It = ClassChain.rbegin(); It != ClassChain.rend(); ++It)
 		{
 			UClass* Class = *It;
-			if (Class->GetProperties().IsEmpty())
+
+			// 노출할 프로퍼티가 하나도 없으면 헤더도 그리지 않는다
+			bool bHasVisibleProperty = false;
+			for (const FProperty& Property : Class->GetProperties())
+			{
+				if (Property.HasAnyFlags(CPF_Edit))
+				{
+					bHasVisibleProperty = true;
+					break;
+				}
+			}
+			if (!bHasVisibleProperty)
 			{
 				continue;
 			}
@@ -667,10 +699,65 @@ namespace
 			{
 				for (const FProperty& Property : Class->GetProperties())
 				{
+					if (!Property.HasAnyFlags(CPF_Edit))
+					{
+						continue;
+					}
+
+					const bool bReadOnly = Property.HasAnyFlags(CPF_EditConst);
+					if (bReadOnly) ImGui::BeginDisabled();
 					DrawProperty(Object, Property, CustomFont);
+					if (bReadOnly) ImGui::EndDisabled();
 				}
 			}
 			ImGui::PopID();
+		}
+	}
+
+	void DrawActorHeader(AActor* Actor, UActorComponent*& OutSelectedComponent)
+	{
+		if (!Actor) { return; }
+
+		static char ComponentNameInputBuf[256] = {};
+
+		ImGui::Text("Actor: %s", Actor->GetName().c_str());
+		ImGui::Text("UUID: %u", Actor->GetUUID());
+
+		if (ImGui::Button("Add Component"))
+		{
+			ImGui::OpenPopup("AddComponentPopup");
+		}
+
+		if (ImGui::BeginPopup("AddComponentPopup"))
+		{
+			ImGui::Text("Component Name:");
+			ImGui::SameLine();
+			ImGui::InputText("##Component Name", ComponentNameInputBuf, sizeof(ComponentNameInputBuf));
+			if (ImGui::MenuItem("StaticMesh Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UStaticMeshComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("Text Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UTextRenderComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("ParticleSubUV Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UParticleSubUVComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			/*if (ImGui::MenuItem("SpotLight Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(USpotLightComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}*/
+			ImGui::EndPopup();
 		}
 	}
 }
@@ -702,35 +789,216 @@ void FDetailsPanel::OnRender()
 
 	ImGui::Begin("Details");
 
-	if (Target)
+	if (TargetActor)
 	{
-		// 액터 -> 컴포넌트 순으로, 클래스별 프로퍼티 표시
-		DrawProperties(Target->GetOwner(), CustomFont);
-
-		// 선택된 컴포넌트뿐 아니라 같은 액터의 다른 컴포넌트도 보여준다.
+		// 빌보드처럼 디테일에 숨겨진 컴포넌트가 선택되면 노출되는 부모로 올린다.
 		// (예: 라이트는 빌보드를 클릭해서 고르지만 수치는 SpotLight 쪽에 있다)
-		if (AActor* Owner = Target->GetOwner())
+		while (TargetComponent && TargetComponent->IsHiddenInDetails())
 		{
-			for (UActorComponent* Component : Owner->GetComponents())
+			USceneComponent* HiddenComponent = Cast<USceneComponent>(TargetComponent);
+			TargetComponent = HiddenComponent ? HiddenComponent->GetAttachParent() : nullptr;
+		}
+
+		DrawActorHeader(TargetActor, TargetComponent);
+		DrawCompoenetList(TargetActor, TargetComponent);
+		ImGui::Separator();
+
+		// 액터 -> 컴포넌트 순으로, 클래스별 프로퍼티 표시
+		ImGui::PushID(TargetActor);
+		DrawProperties(TargetActor, CustomFont);
+		ImGui::PopID();
+
+		if (TargetComponent)
+		{
+			ImGui::PushID(TargetComponent);
+			ImGui::SeparatorText("Component Properties");
+			DrawProperties(TargetComponent, CustomFont);
+			SelectComponent(TargetComponent);
+			if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(TargetComponent))
 			{
-				// 같은 클래스를 상속한 컴포넌트가 여럿이면 헤더 ID가 겹치므로 분리한다
-				ImGui::PushID(Component);
-				DrawProperties(Component, CustomFont);
-				if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component))
+				DrawMaterialSlots(MeshComponent);
+			}
+			ImGui::PopID();
+
+			if (PendingDeleteComponent)
+			{
+				if (DeleteCallback)
 				{
-					DrawMaterialSlots(MeshComponent);
+					DeleteCallback(PendingDeleteComponent);
 				}
-				ImGui::PopID();
+
+				PendingDeleteComponent = nullptr;
 			}
 		}
-		else
+	}
+	ImGui::End();
+}
+
+
+void FDetailsPanel::SelectComponent(UActorComponent* Component)
+{
+	if (!Component)
+	{
+		TargetComponent = nullptr;
+		EditingNameComponent = nullptr;
+		bFocusNameEdit = false;
+
+		if (Callback)
+			Callback(nullptr);
+
+		return;
+	}
+
+	TargetComponent = Component;
+
+	USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
+	if (Callback)
+		Callback(SceneComponent);
+}
+
+void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& OutSelectedComponent)
+{
+	if (!SelectedActor) { return; }
+
+	if (PendingDragComponent && PendingDroppedComponent)
+	{
+		TryReparent(PendingDroppedComponent, PendingDragComponent);
+		PendingDragComponent = nullptr;
+		PendingDroppedComponent = nullptr;
+	}
+
+	USceneComponent* Root = SelectedActor->GetRootComponent();
+
+	if (Root && ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		DrawSceneComponentNode(Root, Root, OutSelectedComponent);
+	}
+}
+
+void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneComponent* Root, UActorComponent*& OutSelectedComponent)
+{
+	// 빌보드 같은 에디터 표시용 컴포넌트는 트리에 노출하지 않는다
+	if (!Component || Component->IsHiddenInDetails())
+		return;
+
+	// 숨겨진 자식만 있는 노드가 펼침 화살표를 갖지 않도록 노출되는 자식만 센다
+	TArray<USceneComponent*> Children;
+	for (USceneComponent* Child : Component->GetAttachChildren())
+	{
+		if (Child && !Child->IsHiddenInDetails())
 		{
-			DrawProperties(Target, CustomFont);
+			Children.Add(Child);
 		}
 	}
 
-	ImGui::End();
+	const bool bIsLeaf = Children.IsEmpty();
+	bIsEditingName = (EditingNameComponent == Component);
+	ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow;
+	if (Component == OutSelectedComponent)
+	{
+		Flags |= ImGuiTreeNodeFlags_Selected;
+	}
+	if (bIsLeaf)
+	{
+		Flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+	}
+
+	FString Label = Component->GetName();
+	if (Component == Root)
+		Label += " (Root)";
+
+	ImGui::PushID(Component);
+	const ImVec2 RowStart = ImGui::GetCursorScreenPos();
+	const float RowWidth = ImGui::GetContentRegionAvail().x;
+	const bool bOpen = ImGui::TreeNodeEx("ComponentNode", Flags, "%s", bIsEditingName ? "" : Label.c_str());
+
+	USceneComponent* DragComponent = Component;
+
+	// source: Root 제외, 현재 Component를 payload에 담음
+	if (Component != Root && ImGui::BeginDragDropSource())
+	{
+		ImGui::SetDragDropPayload(EditorDragDrop::Component, &Component, sizeof(USceneComponent*));
+		ImGui::EndDragDropSource();
+	}
+	// target: 모든 행이 가능, payload를 받아 현재 Component를 부모로 사용
+	if (ImGui::BeginDragDropTarget())
+	{
+		if (const ImGuiPayload* Payload = ImGui::AcceptDragDropPayload(EditorDragDrop::Component))
+		{
+			USceneComponent* DroppedComponent = *static_cast<USceneComponent**>(Payload->Data);
+			PendingDroppedComponent = DroppedComponent;
+			PendingDragComponent = DragComponent;
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	if (!bIsEditingName)
+	{
+		if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+			OutSelectedComponent = Component;
+
+		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+		{
+			EditingNameComponent = Component;
+			strncpy_s(ComponentNameEditBuffer, sizeof(ComponentNameEditBuffer), Component->GetName().c_str(), _TRUNCATE);
+			bFocusNameEdit = true;
+		}
+
+		if (ImGui::BeginPopupContextItem("Component Context"))
+		{
+			if (ImGui::MenuItem("Delete", nullptr, false, Component != Root))
+				PendingDeleteComponent = Component;
+			ImGui::EndPopup();
+		}
+
+		const FString ClassName = std::format("({})", Component->GetClass()->Name);
+		const float TextX = RowStart.x + RowWidth - ImGui::CalcTextSize(ClassName.c_str()).x;
+		ImGui::GetWindowDrawList()->AddText(ImVec2(TextX, RowStart.y), IM_COL32(200, 200, 200, 255), ClassName.c_str());
+	}
+	else
+	{
+		ImGui::SameLine();
+		if (bFocusNameEdit)
+		{
+			ImGui::SetKeyboardFocusHere();
+			bFocusNameEdit = false;
+		}
+
+		const bool bConfirmed = ImGui::InputText("Rename", ComponentNameEditBuffer,
+			sizeof(ComponentNameEditBuffer), ImGuiInputTextFlags_EnterReturnsTrue);
+		const bool bCancelled = ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape);
+		const bool bFinished = bConfirmed || ImGui::IsItemDeactivatedAfterEdit();
+		if (bCancelled || bFinished)
+		{
+			if (!bCancelled && ComponentNameEditBuffer[0] != '\0')
+			{
+				Component->SetName(FName(ComponentNameEditBuffer));
+			}
+			EditingNameComponent = nullptr;
+		}
+	}
+
+	if (bOpen && !bIsLeaf)
+	{
+		for (USceneComponent* Child : Children)
+		{
+			DrawSceneComponentNode(Child, Root, OutSelectedComponent);
+		}
+		ImGui::TreePop();
+	}
+
+	ImGui::PopID();
 }
+
+void FDetailsPanel::TryReparent(USceneComponent* DroppedComponent, USceneComponent* DragComponent)
+{
+	if (DroppedComponent != nullptr && DroppedComponent->GetAttachParent() != DragComponent
+		&& DroppedComponent != DragComponent)
+	{
+		DroppedComponent->SetupAttachment(DragComponent, EAttachmentRule::KeepWorld);
+	}
+}
+
 
 FDetailsPanel::~FDetailsPanel()
 {

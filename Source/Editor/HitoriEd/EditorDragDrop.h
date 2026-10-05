@@ -10,4 +10,6 @@ namespace EditorDragDrop
 
 	// 페이로드 내용: UFont* 한 개
 	inline constexpr const char* Font = "ASSET_FONT";
+
+	inline constexpr const char* Component = "COMPONENT";
 }

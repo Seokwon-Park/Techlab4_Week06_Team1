@@ -2,14 +2,12 @@
 #include "StaticMeshActor.h"
 
 #include "Component/PrimitiveComponent.h"
-#include "ObjectSystem/ObjectFactory.h"
 #include "Asset/AssetManager.h"
 
 AStaticMeshActor::AStaticMeshActor()
 {
-	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("UPrimitiveComponent");
-	SetRootComponent(StaticMeshComponent);
-
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("UStaticMeshComponent");
+	StaticMeshComponent->SetupAttachment(GetRootComponent());
 }
 
 void AStaticMeshActor::SetPrimitiveType(EPrimitiveType Type)

@@ -29,6 +29,9 @@
 
 #include "Render/SkyboxRenderer.h"
 
+#include "PlayInEditorDataTypes.h"
+#include "Core/Misc/Optional.h"
+
 //Temp
 #include "Text/Font.h"
 #include "Text/TextRenderer.h"
@@ -50,6 +53,24 @@ public:
 	// 네 View 결과와 ImGui를 메인 Swapchain 백버퍼에 합성한다. Present는 FEngineLoop가 한다.
 	void PresentFrame();
 	void DeleteActor(AActor* Actor);
+	void DeleteComponent(UActorComponent* Component);
+
+	//Play 버튼을 눌렀을때 Play Session 실행을 요청한다.
+	inline void RequestPlaySession() { bPlaySessionRequested = true; }
+	inline void RequestEndPlayMap() { bRequestEndPlayMapQueued = true; }
+
+	//실제 PIE 를 실행
+	void StartPlayInEditorSession();
+	UWorld* CreatePIEWorldByDuplication(FWorldContext& PIEContext, UWorld* InEditorWorld);
+
+	void OnActiveWorldChanged() {};
+
+	void EndPlayMap();
+
+	////FEditorDelegates::PrePIEEnded / EndPIE.Broadcast()
+	//void TeardownPlaySession(const FWorldContext& PIEContext);            // 액터 EndPlay, 월드 정리(CleanupWorld)
+	//void RestoreEditorWorld(UWorld* EditorWorld);            // GWorld를 에디터 월드로 복구
+	//void DestroyWorldContext(UWorld* PlayWorld);
 
 private:
 	// 이번 프레임 DeltaTime을 패널에 전달하고 에디터 단축키를 처리한다.
@@ -69,6 +90,10 @@ private:
 	void RenderFogPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation,const FMatrix& ViewProjection, FRenderQueue& RenderQueue);
 	//Overlay Pass
 	void RenderOverlayPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue);
+
+	FWorldContext& GetEditorWorldContext();
+	FWorldContext* GetPIEWorldContext(int32 WorldPIEInstance = 0);
+	UWorld* GetActiveWorld() const { return PlayWorld ? PlayWorld : EditorWorld; }
 
 	// FEngineLoop 소유. OnInit에서 받아 둔다.
 	FWindow* MainWindow = nullptr;
@@ -100,6 +125,12 @@ private:
 	FRenderQueue RenderQueue;
 	FOutlinerPanel* OutlinerPanel = nullptr;
 	FContentDrawerPanel* ContentDrawerPanel = nullptr;
+
+	UWorld* EditorWorld = nullptr;
+	UWorld* PlayWorld = nullptr;
+
+	bool bPlaySessionRequested = true;
+	bool bRequestEndPlayMapQueued = true;
 
 	void ResetSceneSelection();
 

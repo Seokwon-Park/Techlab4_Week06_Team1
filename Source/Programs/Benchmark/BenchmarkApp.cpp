@@ -50,6 +50,8 @@ bool UBenchmarkEngine::Init()
 	if (!Super::Init())
 		return false;
 
+	World = UWorld::CreateWorld(EWorldType::Game, true);
+
 	ImGuiRenderer = MakeUnique<FImGuiRenderer>();
 	if (!ImGuiRenderer->Init(GetEngineLoop().GetMainWindow()->GetHandle(), GetEngineLoop().GetRenderDevice()->GetDevice(), GetEngineLoop().GetRenderDevice()->GetContext()))
 	{
@@ -154,11 +156,13 @@ void UBenchmarkEngine::InitEditorTools()
 	EditorUI->SetOpenSceneCallback([this]()
 		{
 			OutlinerPanel->SelectActor(nullptr);
+			DetailsPanel->SelectComponent(nullptr);
 			FEditorFileUtils::LoadScene(World);
 		});
 	EditorUI->SetNewSceneCallback([this]()
 		{
 			OutlinerPanel->SelectActor(nullptr);
+			DetailsPanel->SelectComponent(nullptr);
 			FEditorFileUtils::NewScene(World);
 		});
 
@@ -175,7 +179,8 @@ void UBenchmarkEngine::InitEditorTools()
 	OutlinerPanel = EditorUI->AddEditorPanel<FOutlinerPanel>();
 	OutlinerPanel->SetWorld(World);
 	OutlinerPanel->SetSelectionCallback(
-		[this](USceneComponent* Root) { SelectScene(Root); });
+		[this](USceneComponent* Scene) { SelectPrimitive(Cast<UPrimitiveComponent>(Scene)); });
+
 	OutlinerPanel->SetDeleteActorCallback(
 		[this](AActor* Actor)
 		{
@@ -201,6 +206,7 @@ void UBenchmarkEngine::SelectScene(USceneComponent* Root)
 			if ((Primitive = Cast<UPrimitiveComponent>(C))) break;
 	}
 	Outline->SetTarget(Primitive);
+	DetailsPanel->SetTarget(Primitive ? Primitive->GetOwner() : nullptr);
 }
 
 UPrimitiveComponent* UBenchmarkEngine::GetSelectedPrimitive() const
@@ -272,7 +278,6 @@ void UBenchmarkEngine::UpdateGizmoAndPicking()
 	if (FInputSystem::IsMousePressed(EMouseButton::Left) &&
 		!Gizmo->IsUsing() && Gizmo->GetHoveredAxis() < 0)
 	{
-
 		FHitResult Hit;
 		SelectScene(World->LineTraceSingle(Ray, Hit) ? Hit.HitComponent : nullptr);
 	}

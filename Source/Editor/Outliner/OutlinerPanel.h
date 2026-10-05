@@ -8,6 +8,7 @@ class UWorld;
 class ULevel;
 class AActor;
 class UActorComponent;
+class UPrimitiveComponent;
 class USceneComponent;
 
 using SelectionCallback = std::function<void(USceneComponent*)>;
