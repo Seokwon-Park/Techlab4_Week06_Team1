@@ -40,7 +40,7 @@ private:
 	// 마우스 Ray로 Gizmo를 갱신하고, 축을 잡지 않은 클릭은 피킹으로 처리한다.
 	void UpdateGizmoAndPicking();
 	// Outliner·Gizmo·Outline·Details의 선택 대상을 한 번에 맞춘다.
-	void SelectPrimitive(UPrimitiveComponent* Primitive);
+	void SelectScene(USceneComponent* Root);
 
 	TUniquePtr<FImGuiRenderer> ImGuiRenderer;
 

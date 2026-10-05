@@ -5,7 +5,9 @@
 #include "UObject/Class.h"
 
 #include "Serialization/TypeSerializer.h"
+#include "Serialization/MathSerialization.h"
 #include "Asset/AssetManager.h" //??? 의존성 제거 필요
+
 
 
 TArray<UObject*> GUObjectArray;
@@ -179,6 +181,62 @@ void UObject::Serialize(json& Handle, bool bIsLoading)
 				break;
 			}
 			default:
+				break;
+			}
+		}
+	}
+}
+
+void UObject::Serialize(FStructuredArchive::FRecord Record)
+{
+	SerializeScriptProperties(Record.EnterField("Properties"));
+}
+
+void UObject::SerializeScriptProperties(FStructuredArchive::FSlot Slot)
+{
+	FStructuredArchive::FRecord Properties = Slot.EnterRecord();
+
+	const bool bIsLoading = Properties.GetUnderlyingArchive().IsLoading();
+
+	for (UClass* c = GetClass(); c; c = c->Super)
+	{
+		for (const FProperty& Property : c->GetProperties())
+		{
+			TOptional<FStructuredArchive::FSlot> Slot = Properties.TryEnterField(Property.Name.c_str(), true);
+			if (!Slot.IsSet()) continue;
+
+			void* Ptr = reinterpret_cast<uint8*>(this) + Property.Offset;
+			FStructuredArchive::FSlot Value = Slot.GetValue();
+
+			switch (Property.Type)
+			{
+			case EPropertyType::Float:     Value << *static_cast<float*>(Ptr); break;
+			case EPropertyType::Int:       Value << *static_cast<int32*>(Ptr); break;
+			case EPropertyType::String:    Value << *static_cast<FString*>(Ptr); break;
+			case EPropertyType::Bool:      Value << *static_cast<bool*>(Ptr); break;
+			case EPropertyType::Vector:    Value << *static_cast<FVector*>(Ptr); break;
+			case EPropertyType::Vector4:
+			case EPropertyType::Color:     Value << *static_cast<FVector4*>(Ptr); break;
+			case EPropertyType::Rotator:   Value << *static_cast<FRotator*>(Ptr); break;
+			case EPropertyType::Transform: Value << *static_cast<FTransform*>(Ptr); break;
+			case EPropertyType::Object:
+			{
+				UObject*& Ref = *static_cast<UObject**>(Ptr);
+				UObject* Previous = Ref;
+				Value << Ref;
+
+				// 불러온 객체가 프로퍼티가 기대하는 클래스가 아니면 되돌린다 (기존 Asset->IsA(Property.Class) 검사)
+				if (bIsLoading && Ref && Property.Class && !Ref->IsA(Property.Class))
+				{
+					HTR_LOG(Warning, "Load: '{}' is not a {}, keeping default", Property.Name, Property.Class->Name);
+					Ref = Previous;
+				}
+				break;
+			}
+			default:
+				// 슬롯을 열었으면 반드시 값을 써야 한다. 모르는 타입은 저장 시 null로 둔다.
+				HTR_LOG(Warning, "Serialize: unsupported property type for '{}'", Property.Name);
+				{ UObject* Null = nullptr; Value << Null; }
 				break;
 			}
 		}

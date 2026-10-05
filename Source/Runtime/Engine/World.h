@@ -99,6 +99,8 @@ public:
 
 	void UpdateFireBallLight(FRenderer* Renderer);
 
+	using Super::Serialize;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 private:
 	EWorldType WorldType = EWorldType::None;
 

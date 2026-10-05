@@ -7,6 +7,7 @@
 #include "Asset/AssetManager.h"
 #include "UObject/UObjectGlobals.h"
 #include "Serialization/TypeSerializer.h"
+#include "Serialization/MathSerialization.h"
 
 namespace
 {
@@ -29,7 +30,7 @@ UMaterial* UMaterial::CreateInstance(const UMaterial* Source)
 	}
 
 	UMaterial* Instance = NewObject<UMaterial>();
-	
+
 	Instance->ParamLayout = Source->ParamLayout;
 	Instance->Shader = Source->Shader;
 	Instance->Textures = Source->Textures;
@@ -139,7 +140,7 @@ UMaterial* UMaterial::LoadMaterial(const json& In)
 	if (In.contains("UVScrollSpeed"))
 	{
 		const auto& UV = In["UVScrollSpeed"];
-		Instance->UVScrollSpeed = FVector2(UV[0].get<float>(),UV[1].get<float>());
+		Instance->UVScrollSpeed = FVector2(UV[0].get<float>(), UV[1].get<float>());
 	}
 	if (In.contains("SamplerState"))
 	{
@@ -153,4 +154,94 @@ UMaterial* UMaterial::LoadMaterial(const json& In)
 	}
 
 	return Instance;
+}
+
+// Material.cpp
+void UMaterial::SerializeMaterialReference(FStructuredArchive::FSlot Slot, UMaterial*& Material)
+{
+	FArchive& Ar = Slot.GetUnderlyingArchive();
+	FStructuredArchive::FRecord Record = Slot.EnterRecord();
+
+	// ── 에셋 참조 ──
+	// 저장과 불러오기가 같은 순서로 같은 함수를 부르게 TryEnterField를 쓴다 (바이너리 포맷에서도 맞도록)
+	const bool bIsAsset = Ar.IsSaving() && Material && !Material->GetPath().empty();
+	if (TOptional<FStructuredArchive::FSlot> AssetSlot = Record.TryEnterField("Asset", bIsAsset))
+	{
+		FString Path = Ar.IsSaving() ? Material->GetPath() : FString();
+		AssetSlot.GetValue() << Path;
+		if (Ar.IsLoading())
+			Material = UAssetManager::GetAssetByPath<UMaterial>(Path);
+		return;
+	}
+
+	// ── 인스턴스 ──
+	const bool bIsInstance = Ar.IsSaving() && Material != nullptr;
+	TOptional<FStructuredArchive::FSlot> BaseSlot = Record.TryEnterField("Base", bIsInstance);
+	if (!BaseSlot.IsSet())
+	{
+		if (Ar.IsLoading())
+			Material = nullptr;     // 빈 Record = 머티리얼 없음
+		return;
+	}
+
+	FString BasePath;
+	if (Ar.IsSaving())
+	{
+		const UMaterial* Base = Material->GetBaseAsset();
+		BasePath = Base ? Base->GetPath() : FString("DefaultMaterial");
+	}
+	BaseSlot.GetValue() << BasePath;
+
+	if (Ar.IsLoading())
+	{
+		UMaterial* Base = UAssetManager::GetAssetByPath<UMaterial>(BasePath);
+		if (!Base)
+		{
+			HTR_LOG(Warning, "Load: base material '{}' not found, using DefaultMaterial", BasePath);
+			Base = UAssetManager::GetAssetByPath<UMaterial>("DefaultMaterial");
+		}
+		Material = CreateInstance(Base);   // 먼저 만들고
+	}
+
+	if (Material)
+		Material->Serialize(Record.EnterRecord("Instance"));   // 그다음 값을 채운다
+}
+
+void UMaterial::Serialize(FStructuredArchive::FRecord Record)
+{
+	Super::Serialize(Record);   // "Properties" (리플렉션 프로퍼티. 지금은 없음)
+
+	FArchive& Ar = Record.GetUnderlyingArchive();
+
+	Record << SA_VALUE("BaseColor", BaseColor)
+		<< SA_VALUE("UVScrollSpeed", UVScrollSpeed);
+
+	// enum은 이름 문자열로 (UE 텍스트 포맷도 enum을 이름으로 쓴다)
+	FString Sampler = SamplerState == ESamplerState::LinearWrap ? "LinearWrap" : "LinearClamp";
+	Record << SA_VALUE("SamplerState", Sampler);
+	if (Ar.IsLoading())
+		SamplerState = Sampler == "LinearWrap" ? ESamplerState::LinearWrap : ESamplerState::LinearClamp;
+
+	FString Blend = BlendState == EBlendState::AlphaBlend ? "AlphaBlend" : "Opaque";
+	Record << SA_VALUE("BlendState", Blend);
+	if (Ar.IsLoading())
+		BlendState = Blend == "AlphaBlend" ? EBlendState::AlphaBlend : EBlendState::Opaque;
+
+	// 텍스처: 경로 문자열 배열. 없는 칸은 빈 문자열
+	int32 Num = Textures.Num();
+	FStructuredArchive::FArray TextureArray = Record.EnterArray("Textures", Num);
+	if (Ar.IsLoading())
+		Textures.Reset();
+
+	for (int32 i = 0; i < Num; ++i)
+	{
+		FString Path;
+		if (Ar.IsSaving() && Textures[i])
+			Path = Textures[i]->GetPath();
+
+		TextureArray.EnterElement() << Path;
+
+		if (Ar.IsLoading())
+			Textures.Add(Path.empty() ? nullptr : FindOrLoadTexture(Path));
+	}
 }
