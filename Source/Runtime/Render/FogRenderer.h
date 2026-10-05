@@ -10,6 +10,7 @@ struct FFogConstants
 	FMatrix InverseViewProjection;
 	FVector CameraPosition;
 	FFogInfo FogInfo;
+	FVector Padding = { 0.0f, 0.0f, 0.0f };
 };
 
 

@@ -16,6 +16,8 @@ public:
 	USceneComponent() = default;
 	virtual ~USceneComponent() override;
 
+	virtual void PostEditChangeProperty(const FProperty& Property) override;
+
 	// Get & Set
 	const FVector& GetRelativeLocation() const { return Transform.Location; }
 	void SetRelativeLocation(const FVector& InLocation) 

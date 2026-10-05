@@ -8,6 +8,7 @@
 #include "Serialization/Archive.h"
 
 class UClass;
+struct FProperty;
 // Property Reflection
 
 #define REFLECT_START(ClassName) \
@@ -95,6 +96,8 @@ public:
 	inline EObjectFlags GetFlags() const { return Flags; }
 
 	virtual void Serialize(json& Handle, bool bIsLoading);
+
+	virtual void PostEditChangeProperty(const FProperty& Property) {};
 
 	void* operator new(uint64 Size)
 	{

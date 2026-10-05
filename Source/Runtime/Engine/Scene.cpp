@@ -71,9 +71,28 @@ void FScene::RemoveAllPrimitives()
 	bElementListChanged = true;
 }
 
-void FScene::AddFogInfo(const FFogInfo& FogInfo)
+void FScene::AddFogInfo(uint32 Id, const FFogInfo& FogInfo)
 {
-	FogInfos.Add(FogInfo);
+	FExponentialHeightFogSceneInfo sceneFogInfo;
+	sceneFogInfo.Id = Id;
+	sceneFogInfo.FogInfo = FogInfo;
+
+
+	FogInfos.Add(sceneFogInfo);
+}
+
+void FScene::UpdateFogInfo(uint32 Id, const FFogInfo& FogInfo)
+{
+	for (FExponentialHeightFogSceneInfo& SceneFogInfo : FogInfos)
+	{
+		if (SceneFogInfo.Id == Id)
+		{
+			SceneFogInfo.FogInfo = FogInfo;
+			return;
+		}
+
+
+	}
 }
 
 //void FScene::RemoveFogInfo(uint32 Id)

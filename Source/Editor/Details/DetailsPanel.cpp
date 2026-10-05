@@ -538,24 +538,23 @@ namespace
 		ImGui::SameLine(120.0f);
 		ImGui::SetNextItemWidth(-1.0f);
 
+		bool bChanged = false;
+
 		switch (Property.Type)
 		{
 		case EPropertyType::Float:
-			ImGui::DragFloat(Label.c_str(), static_cast<float*>(ValuePtr), 0.1f);
+			bChanged = ImGui::DragFloat(Label.c_str(), static_cast<float*>(ValuePtr), 0.1f);
 			break;
-
 		case EPropertyType::Int:
-			ImGui::DragInt(Label.c_str(), static_cast<int*>(ValuePtr), 1.0f);
+			bChanged = ImGui::DragInt(Label.c_str(), static_cast<int*>(ValuePtr), 1.0f);
 			break;
-
 		case EPropertyType::Bool:
-			ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
+			bChanged =ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
 			break;
-
 		case EPropertyType::Vector:
 		{
 			FVector* Value = static_cast<FVector*>(ValuePtr);
-			ImGui::DragFloat3(Label.c_str(), Value->V, 0.1f);
+			bChanged = ImGui::DragFloat3(Label.c_str(), Value->V, 0.1f);
 			break;
 		}
 		case EPropertyType::Rotator:
@@ -571,6 +570,7 @@ namespace
 			}
 			break;
 		}
+
 
 		case EPropertyType::Vector4:
 		{
@@ -605,9 +605,9 @@ namespace
 			FTransform* Value = static_cast<FTransform*>(ValuePtr);
 
 			ImGui::NewLine();
-			DrawVector3Controller("Location", Value->Location.V, 0.0f, 55.0f);
-			DrawRotatorAsXYZ("Rotation", Value->Rotation);
-			DrawVector3Controller("Scale", Value->Scale.V, 1.0f, 55.0f);
+			bChanged = DrawVector3Controller("Location", Value->Location.V, 0.0f, 55.0f);
+			bChanged |= DrawRotatorAsXYZ("Rotation", Value->Rotation);
+			bChanged |= DrawVector3Controller("Scale", Value->Scale.V, 1.0f, 55.0f);
 			break;
 		}
 		case EPropertyType::Object:
@@ -631,6 +631,11 @@ namespace
 		default:
 			ImGui::TextDisabled("(Unsupported)");
 			break;
+		}
+		
+		if(bChanged)
+		{
+			Object->PostEditChangeProperty(Property);
 		}
 	}
 
