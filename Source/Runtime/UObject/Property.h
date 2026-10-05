@@ -38,19 +38,6 @@ DEFINE_PROPERTY_TYPE(FVector4, Vector4)
 DEFINE_PROPERTY_TYPE(FTransform, Transform)
 DEFINE_PROPERTY_TYPE(FRotator, Rotator)
 
-// 프로퍼티 지정자 (UE의 UPROPERTY 지정자에 대응)
-enum EPropertyFlags : uint32
-{
-    CPF_None      = 0,
-    CPF_Edit      = 1 << 0, // 디테일 패널에 노출
-    CPF_EditConst = 1 << 1, // 노출하되 수정 불가
-    CPF_Transient = 1 << 2, // 직렬화에서 제외
-
-    CPF_EditAnywhere    = CPF_Edit,
-    CPF_VisibleAnywhere = CPF_Edit | CPF_EditConst,
-    CPF_Default         = CPF_EditAnywhere,
-};
-
 struct FProperty
 {
     FString Name;
@@ -58,7 +45,4 @@ struct FProperty
     size_t Offset;
     size_t Size;
     UClass* Class = nullptr;
-    uint32 Flags = CPF_Default;
-
-    bool HasAnyFlags(uint32 InFlags) const { return (Flags & InFlags) != 0; }
 };
