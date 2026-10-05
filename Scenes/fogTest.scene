@@ -1,0 +1,136 @@
+{
+    "Actors": [
+        {
+            "Class": "AStaticMeshActor",
+            "Components": [
+                {
+                    "Class": "UStaticMeshComponent",
+                    "Name": "UPrimitiveComponent_0",
+                    "Properties": {
+                        "OverrideMaterials": [],
+                        "StaticMesh": "Cube",
+                        "Transform": {
+                            "Location": [
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "Rotation": [
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "Scale": [
+                                20.739398956298828,
+                                12.813807487487793,
+                                0.24036407470703125
+                            ]
+                        },
+                        "bVisible": true
+                    }
+                }
+            ],
+            "Properties": null
+        },
+        {
+            "Class": "AStaticMeshActor",
+            "Components": [
+                {
+                    "Class": "UStaticMeshComponent",
+                    "Name": "UPrimitiveComponent_0",
+                    "Properties": {
+                        "OverrideMaterials": [],
+                        "StaticMesh": "Models/Ryo/Ryo.obj",
+                        "Transform": {
+                            "Location": [
+                                0.0,
+                                0.0,
+                                0.8234899044036865
+                            ],
+                            "Rotation": [
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "Scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                            ]
+                        },
+                        "bVisible": true
+                    }
+                }
+            ],
+            "Properties": null
+        },
+        {
+            "Class": "AExponentialHeightFogActor",
+            "Components": [
+                {
+                    "Class": "UBillboardComponent",
+                    "Name": "UBillboardComponent_0",
+                    "Properties": {
+                        "Material": {
+                            "Asset": "SubUVMaterial"
+                        },
+                        "Transform": {
+                            "Location": [
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "Rotation": [
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "Scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                            ]
+                        },
+                        "bVisible": true
+                    }
+                },
+                {
+                    "Class": "UExponentialHeightFogComponent",
+                    "Name": "UExponentialHeightFogComponent_0",
+                    "Properties": {
+                        "FogColor": [
+                            1.0,
+                            0.4000000059604645,
+                            0.699999988079071,
+                            1.0
+                        ],
+                        "FogCutoffDistance": 0.0,
+                        "FogDensity": 0.10000000149011612,
+                        "FogHeightFalloff": 0.20000000298023224,
+                        "FogMaxOpacity": 1.0,
+                        "StartDistance": 10.0,
+                        "Transform": {
+                            "Location": [
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "Rotation": [
+                                0.0,
+                                0.0,
+                                0.0
+                            ],
+                            "Scale": [
+                                1.0,
+                                1.0,
+                                1.0
+                            ]
+                        }
+                    }
+                }
+            ],
+            "Properties": null
+        }
+    ],
+    "Version": 2
+}

@@ -10,6 +10,7 @@ cbuffer FogConstants : register(b0)
     float FogCutoffDistance;
     float FogMaxOpacity;
     float4 FogColor;
+    float FogHeight;
 }
 
 Texture2D<float> SceneDepth : register(t0);
@@ -52,7 +53,7 @@ float4 mainPS(PSInput Input) : SV_Target
     float3 FogStartPos = CameraPosition + normalize(CameraToPixel) * StartDistance;
     
     //안개 시작지점의 밀도
-    float RayOriginDensity = FogDensity * exp(-FogHeightFalloff * FogStartPos.z);
+    float RayOriginDensity = FogDensity * exp(-FogHeightFalloff * (FogStartPos.z - FogHeight));
     
     float RayLength = Distance - StartDistance;
     float RayDeltaZ = WorldPos.z - FogStartPos.z;

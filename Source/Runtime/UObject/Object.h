@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectHash.h"
 #include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveSlots.h"
 
 class UClass;
 struct FProperty;
@@ -21,6 +23,13 @@ public: \
 
 #define PROPERTY_TYPE(PropertyName, PropertyType) \
     InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), EPropertyType::##PropertyType);
+
+// Flags: EPropertyFlags 조합 (예: CPF_VisibleAnywhere, CPF_EditAnywhere | CPF_Transient)
+#define PROPERTY_FLAGS(PropertyName, Flags) \
+    InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), Flags);
+
+#define PROPERTY_TYPE_FLAGS(PropertyName, PropertyType, Flags) \
+    InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), EPropertyType::##PropertyType, Flags);
 
 #define REFLECT_END()\
 	};\
@@ -47,6 +56,7 @@ public:                                                                 \
         {                                                               \
             c.Name  = #ClassName;                                       \
             c.Super = Super::StaticClass();								\
+            c.ClassSize = sizeof(ClassName);							\
 			c.Constructor = std::is_abstract_v<ClassName> ? nullptr : &InternalConstructInstance<ClassName>;\
 			if (&ClassName::RegisterProperties != &Super::RegisterProperties) \
 			{															\
@@ -63,7 +73,7 @@ private:
 
 class UObject
 {
-	friend class FObjectFactory;
+	friend UObject* StaticConstructObject_Internal(const struct FStaticConstructObjectParameters& Params);
 public:
 	UObject();
 	UObject(bool bRegister);
@@ -96,6 +106,8 @@ public:
 	inline EObjectFlags GetFlags() const { return Flags; }
 
 	virtual void Serialize(json& Handle, bool bIsLoading);
+	virtual void Serialize(FArchive& Ar) {};
+	virtual void Serialize(FStructuredArchive::FRecord Record) {};
 
 	virtual void PostEditChangeProperty(const FProperty& Property) {};
 
@@ -128,9 +140,6 @@ private:
 	EObjectFlags Flags = EObjectFlags::RF_NoFlags;
 
 	bool bIsRegistered = true;
-
-	TMap<FString, int32> ChildNameCounters;
-	friend class FObjectFactory;
 };
 
 extern TArray<UObject*> GUObjectArray;

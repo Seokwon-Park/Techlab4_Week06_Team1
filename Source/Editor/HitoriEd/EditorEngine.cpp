@@ -146,13 +146,19 @@ bool UEditorEngine::Init()
 	OutlinerPanel = EditorUI->AddEditorPanel<FOutlinerPanel>();
 	OutlinerPanel->SetWorld(World);
 	OutlinerPanel->SetSelectionCallback(
-		[this](UPrimitiveComponent* Primitive)
+		[this](USceneComponent* Root)
 		{
-			Gizmo->SetTarget(Primitive);
+			Gizmo->SetTarget(Root);
+			DetailsPanel->SetTarget(Root);
+
+			UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Root);
+			if (!Primitive && Root && Root->GetOwner())
+			{
+				for (UActorComponent* C : Root->GetOwner()->GetComponents())
+					if ((Primitive = Cast<UPrimitiveComponent>(C))) break;
+			}
 			Outline->SetTarget(Primitive);
-			DetailsPanel->SetTarget(Primitive);
-		}
-	);
+		});
 
 	OutlinerPanel->SetDeleteActorCallback(
 		[this](AActor* Actor)
@@ -320,30 +326,6 @@ void UEditorEngine::EndFrame()
 void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue)
 {
 	RenderCommand::BeginRenderPass(ViewRenderingInfo);
-	if (SettingsPanel->GetSettings().bDrawBatchLine)
-	{
-		// 라인 배처는 매 프레임 한 번만 비우고 한 번만 그린다.
-		// 바운딩박스는 그 안에 쌓이는 여러 항목 중 하나일 뿐이다.
-		LineBatcher->BeginFrame();
-
-		if (SettingsPanel->GetSettings().bDrawBoundingBox)
-		{
-			LineBatcher->BuildVertexBuffer();
-			World->GetPathTracker().OnRender(LineBatcher.get());
-		}
-
-		// 선택된 액터가 라이트면 원뿔을 같이 쌓는다
-		if (Gizmo->GetTarget())
-		{
-			if (ALightActor* LightActor = Cast<ALightActor>(Gizmo->GetTarget()->GetOwner()))
-			{
-				LightActor->GetSpotLightComponent()->DrawDebug(LineBatcher.get());
-			}
-		}
-
-		LineBatcher->OnRender(ViewProjection);
-
-	}
 
 	const bool bDrawPrimitives = SettingsPanel->GetSettings().bDrawPrimitives;
 	// 삼각형 연결은 유지하고 View별 Fill Mode만 선택한다.
@@ -385,9 +367,9 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 void UEditorEngine::RenderFogPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation,const FMatrix& ViewProjection, FRenderQueue& RenderQueue)
 {
 	
-	const TArray<FFogInfo>& FogInfos = World->GetScene().FogInfos;
+	const TArray<FExponentialHeightFogSceneInfo>& SceneFogInfos = World->GetScene().FogInfos;
 
-	if (FogInfos.Num() == 0)
+	if (SceneFogInfos.Num() == 0)
 		return;
 	
 	FRenderingInfo PassInfo = ViewRenderingInfo;
@@ -399,7 +381,7 @@ void UEditorEngine::RenderFogPass(const int32 ViewIndex, const FRenderingInfo& V
 	PassInfo.DepthStencil.Texture = nullptr;
 	RenderCommand::BeginRenderPass(PassInfo);
 
-	FogRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, FogInfos[0]);
+	FogRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, SceneFogInfos[0].FogInfo);
 	
 	//Fog는 여러개있더라도 1개의 Fog만 인식해서 그리도록 해야한다.
 
@@ -413,9 +395,37 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
 		Color.LoadOp = ERenderTargetLoadOp::Load;
 
+	PassInfo.DepthStencil.LoadOp = ERenderTargetLoadOp::Load;
+
 
 	RenderCommand::BeginRenderPass(PassInfo);
 
+	if (SettingsPanel->GetSettings().bDrawBatchLine)
+	{
+		// 라인 배처는 매 프레임 한 번만 비우고 한 번만 그린다.
+		// 바운딩박스는 그 안에 쌓이는 여러 항목 중 하나일 뿐이다.
+		LineBatcher->BeginFrame();
+
+		if (SettingsPanel->GetSettings().bDrawBoundingBox)
+		{
+			LineBatcher->BuildVertexBuffer();
+			World->GetPathTracker().OnRender(LineBatcher.get());
+		}
+
+		// 선택된 액터가 라이트면 원뿔을 같이 쌓는다
+		if (Gizmo->GetTarget())
+		{
+			if (ALightActor* LightActor = Cast<ALightActor>(Gizmo->GetTarget()->GetOwner()))
+			{
+				LightActor->GetSpotLightComponent()->DrawDebug(LineBatcher.get());
+			}
+		}
+
+		LineBatcher->OnRender(ViewProjection);
+	}
+
+	//그리드
+	//TODO : 그리드도 안개가 적용되어야하나..?
 	if (SettingsPanel->GetSettings().bDrawBatchLine)
 	{
 		const EGridPlane GridPlane = MultipleViewportsAdapter.GetGridPlane(ViewIndex);
@@ -466,10 +476,6 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 
 	if (Gizmo->GetTarget())
 	{
-		auto Target = Cast<UPrimitiveComponent>(Gizmo->GetTarget());
-
-		FBox box = Target->CalcBounds();
-
 		RenderCommand::ClearDepthStencil(PassInfo.DepthStencil.Texture);
 
 		GizmoRenderer->OnRender(
@@ -562,8 +568,13 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 {
 	// 1. 불투명 Pass
 	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
+
+	//직교인 경우 안개 Pass를 그리지 않는다.
+	if(!MultipleViewportsAdapter.IsOrthographic(ViewIndex))
 	// 2. 안개 Pass
-	RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+		RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+
+
 	// 3. 오버레이 Pass
 	RenderOverlayPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 

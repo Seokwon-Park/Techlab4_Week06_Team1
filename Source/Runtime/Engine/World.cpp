@@ -94,7 +94,7 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
 			Scene.AddPrimitive(Primitive);
 		else if(UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
-			Scene.AddFogInfo(Fog->GetFogInfo());
+			Scene.AddFogInfo(Fog->GetUUID(),Fog->GetFogInfo());
 	}
 
 	// 4. Level->Actors에 등록

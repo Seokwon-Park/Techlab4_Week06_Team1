@@ -24,11 +24,13 @@ public:
 
 	FFogInfo GetFogInfo() const;
 
+	virtual void PostEditChangeProperty(const FProperty& Property) override;
+		 
 private:
 	//포그의 밀도, 높이에 따른 감소율, 시작 거리, 최대 불투명도, 색상 등을 설정하는 변수들
-	float    FogDensity = 5.0f;
+	float    FogDensity = 0.5f;
 	float    FogHeightFalloff = 0.2f;
-	float    StartDistance = 0.0f;
+	float    StartDistance = 10.0;
 	float    FogCutoffDistance = 0.0f;
 	float    FogMaxOpacity = 1.0f;
 	FVector4 FogColor = { 1.0f, 0.4f, 0.7f, 1.0f };
