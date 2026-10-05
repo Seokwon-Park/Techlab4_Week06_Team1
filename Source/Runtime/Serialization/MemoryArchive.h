@@ -9,7 +9,6 @@ public:
 
 	void Seek(int64 InPos) final { Offset = InPos; }
 	int64 Tell() final { return Offset; }
-	virtual int64 TotalSize() { return INDEX_NONE; }
 
 	using FArchive::operator<<;
 
@@ -37,7 +36,7 @@ public:
 		return *this;
 	}
 
-private:
+protected:
 	FMemoryArchive()
 		:FArchive(), Offset(0)
 	{

@@ -57,6 +57,15 @@ public:
 	static UMaterial* LoadMaterial(const json& In);
 
 	const uint16 SortID;
+
+	using Super::Serialize;
+	// 인스턴스의 값(색, 텍스처, 상태). 객체는 이미 만들어져 있어야 한다.
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+
+	// 머티리얼 참조 하나를 Slot에 읽고 쓴다.
+	// 에셋이면 경로만, 인스턴스면 기준 에셋 + 값을 그 자리에 쓰고, 불러올 때 인스턴스를 새로 만든다.
+	// null이면 빈 Record({})로 기록되고, 불러오면 nullptr이 된다.
+	static void SerializeMaterialReference(FStructuredArchive::FSlot Slot, UMaterial*& Material);
 private:
 	inline static uint16 NextSortID = 0;
 };

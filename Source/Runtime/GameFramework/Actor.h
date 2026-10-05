@@ -65,7 +65,11 @@ public:
 	// UE와 같이 기본값은 bCanEverTick = false. 생성자에서 Target = this
 	FActorTickFunction PrimaryActorTick;
 
+	using Super::Serialize;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 protected:
+	UActorComponent* FindComponentByName(FName Name) const;
+
 	//TSet<TObjectPtr<UActorComponent>> OwnedComponents;
 	TArray<UActorComponent*> Components;
 	USceneComponent* RootComponent = nullptr;
@@ -73,5 +77,6 @@ protected:
 	UWorld* World = nullptr;
 	ULevel* Level = nullptr;
 private:
+	
 
 };

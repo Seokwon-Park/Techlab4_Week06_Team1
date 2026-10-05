@@ -3,11 +3,19 @@
 
 #include "Asset/RenderAsset.h"
 
-FJsonArchiveOutputFormatter::FJsonArchiveOutputFormatter(FArchive& InInner, FJsonValue InRoot)
-	: Inner(InInner), Root(InRoot) 
+FJsonArchiveOutputFormatter::FJsonArchiveOutputFormatter(FArchive& InInner)
+	: Inner(InInner)
 {
-	ValueStack.Add(&InRoot);
-};
+	assert(Inner.IsSaving());
+	ValueStack.Add(&Root);
+}
+
+FJsonArchiveOutputFormatter::~FJsonArchiveOutputFormatter()
+{
+	// UE는 쓰는 즉시 Inner로 내보내지만, nlohmann은 트리를 다 만든 뒤 한 번에 내보낸다
+	FString Text = Root.dump(4);
+	Inner.Serialize(Text.data(), static_cast<int64>(Text.size()));
+}
 
 void FJsonArchiveOutputFormatter::EnterRecord()
 {
@@ -21,7 +29,7 @@ void FJsonArchiveOutputFormatter::LeaveRecord()
 void FJsonArchiveOutputFormatter::EnterField(FArchiveFieldName Name)
 {
 	json& Object = Top();
-	assert(Object.is_object() && "EnterRecord 없이 EnterField");
+	assert(Object.is_object());
 	ValueStack.Add(&Object[Name.Name]);      
 }
 
@@ -33,11 +41,14 @@ void FJsonArchiveOutputFormatter::LeaveField()
 
 bool FJsonArchiveOutputFormatter::TryEnterField(FArchiveFieldName Name, bool bEnterWhenSaving)
 {
-	return false;
+	if (bEnterWhenSaving)
+		EnterField(Name);
+	return bEnterWhenSaving;
 }
 
 void FJsonArchiveOutputFormatter::EnterArray(int32& NumElements)
 {
+	Top() = json::array();
 }
 
 void FJsonArchiveOutputFormatter::LeaveArray()
@@ -46,14 +57,20 @@ void FJsonArchiveOutputFormatter::LeaveArray()
 
 void FJsonArchiveOutputFormatter::EnterArrayElement()
 {
+	json& Array = Top();                     // 이전 원소는 이미 Leave됐으므로 Top은 배열
+	Array.push_back(nullptr);
+	ValueStack.Add(&Array.back());           // 다음 push_back 전에 항상 Pop되므로 안전
+
 }
 
 void FJsonArchiveOutputFormatter::LeaveArrayElement()
 {
+	ValueStack.Pop();
 }
 
 void FJsonArchiveOutputFormatter::EnterStream()
 {
+	Top() = json::array();
 }
 
 void FJsonArchiveOutputFormatter::LeaveStream()
@@ -62,14 +79,17 @@ void FJsonArchiveOutputFormatter::LeaveStream()
 
 void FJsonArchiveOutputFormatter::EnterStreamElement()
 {
+	EnterArrayElement();
 }
 
 void FJsonArchiveOutputFormatter::LeaveStreamElement()
 {
+	LeaveArrayElement();
 }
 
 void FJsonArchiveOutputFormatter::EnterMap(int32& NumElements)
 {
+	Top() = json::object();
 }
 
 void FJsonArchiveOutputFormatter::LeaveMap()
@@ -78,10 +98,12 @@ void FJsonArchiveOutputFormatter::LeaveMap()
 
 void FJsonArchiveOutputFormatter::EnterMapElement(FString& Name)
 {
+	ValueStack.Add(&Top()[Name]);
 }
 
 void FJsonArchiveOutputFormatter::LeaveMapElement()
 {
+	ValueStack.Pop();
 }
 
 void FJsonArchiveOutputFormatter::EnterAttributedValue()

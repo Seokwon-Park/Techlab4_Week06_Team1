@@ -6,13 +6,16 @@
 
 class FJsonArchiveInputFormatter final : public FStructuredArchiveFormatter
 {
+public:
 	FJsonArchiveInputFormatter(FJsonArchiveInputFormatter&&) = delete;
 	FJsonArchiveInputFormatter(const FJsonArchiveInputFormatter&) = delete;
 	FJsonArchiveInputFormatter& operator=(FJsonArchiveInputFormatter&&) = delete;
 	FJsonArchiveInputFormatter& operator=(const FJsonArchiveInputFormatter&) = delete;
 
-	explicit FJsonArchiveInputFormatter(FArchive& InInner) : Inner(InInner) {}
+	explicit FJsonArchiveInputFormatter(FArchive& InInner);
 	virtual ~FJsonArchiveInputFormatter();
+	
+	const FJsonObject* FindField(FArchiveFieldName Name);
 
 	inline virtual FArchive& GetUnderlyingArchive() override { return Inner; }
 	inline virtual FStructuredArchiveFormatter* CreateSubtreeReader() override { return this; }
@@ -48,6 +51,25 @@ class FJsonArchiveInputFormatter final : public FStructuredArchiveFormatter
 	//virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSavin) override;
 	virtual bool TryEnterAttributedValueValue() override;
 
+	template <typename T>
+	bool Read(T& Out, const char* TypeName)
+	{
+		const json* Value = Top();
+		if (!Value || Value->is_null())
+			return false;
+
+		try
+		{
+			Value->get_to(Out);
+			return true;
+		}
+		catch (const json::exception&)
+		{
+			HTR_LOG(Warning, "Load: expected {}, got {}, keeping default", TypeName, Value->type_name());
+			return false;
+		}
+	}
+
 	virtual void Serialize(uint8& Value) override;
 	virtual void Serialize(uint16& Value) override;
 	virtual void Serialize(uint32& Value) override;
@@ -73,23 +95,28 @@ class FJsonArchiveInputFormatter final : public FStructuredArchiveFormatter
 	virtual void Serialize(void* Data, uint64 DataSize) override;
 
 private:
+	const FJsonValue* Top() { return ValueStack.Top(); }
+
 	struct FObjectRecord
 	{
-		FObjectRecord(TSharedPtr<FJsonObject> InJsonObject, int64 InValueCount)
+		FObjectRecord(const FJsonObject* InJsonObject, int64 InValueCount)
 			: JsonObject(InJsonObject)
 			, ValueCountOnCreation(InValueCount)
 		{
 
 		}
 
-		TSharedPtr<FJsonObject> JsonObject;
+		const FJsonObject* JsonObject;
 		int64 ValueCountOnCreation;	// For debugging purposes, so we can ensure all values have been consumed
 	};
 
 	FArchive& Inner;
 	FJsonValue Root;                    // ← 생성자에서 파싱한 트리
-	TArray<const json*> ValueStack;
+	TArray<const FJsonValue*> ValueStack;
+	//지금 들어와 잇는 오브젝트
 	TArray<FObjectRecord> ObjectStack;
+	//배열에서 읽지 않은 원소 개수
 	TArray<int32> RemainingStack;
+	//맵의 키 순횡용
 	TArray<FString> KeyStack;
 };

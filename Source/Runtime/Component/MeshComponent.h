@@ -29,6 +29,8 @@ public:
 	// 리플렉션 프로퍼티에 더해 슬롯별 덮어쓰기를 저장/로드한다
 	virtual void Serialize(json& Handle, bool bIsLoading) override;
 
+	using Super::Serialize;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 protected:
 	// 슬롯별 덮어쓰기. nullptr이면 그 슬롯은 메시 기본값을 쓴다
 	TArray<UMaterial*> OverrideMaterials;
