@@ -104,22 +104,25 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 void UWorld::Tick(float DeltaTime)
 {
 	// 에디터 월드면 더이상 틱을 돌리지 않는다.
-	if (WorldType == EWorldType::Editor) return;
 
-	while (!BeginPlayList.IsEmpty())
+
+	if (WorldType == EWorldType::Editor)
 	{
-		BeginPlayList.Peek()->BeginPlay();
-		BeginPlayList.Dequeue();
-	}
-
-	{
-		SCOPE_CYCLE_COUNTER(STAT_ActorTick);
-		// 모든 Actor를 도는 대신 등록된 Tick 함수(메인 카메라 포함)만 실행한다.
-		TickTaskManager.RunAllTickGroups(DeltaTime);
-
-		for (ULevel* Level : Levels)
+		while (!BeginPlayList.IsEmpty())
 		{
-			PathTracker.Tick(Level->GetActors(), DeltaTime);
+			BeginPlayList.Peek()->BeginPlay();
+			BeginPlayList.Dequeue();
+		}
+
+		{
+			SCOPE_CYCLE_COUNTER(STAT_ActorTick);
+			// 모든 Actor를 도는 대신 등록된 Tick 함수(메인 카메라 포함)만 실행한다.
+			TickTaskManager.RunAllTickGroups(DeltaTime);
+
+			for (ULevel* Level : Levels)
+			{
+				PathTracker.Tick(Level->GetActors(), DeltaTime);
+			}
 		}
 	}
 
@@ -684,17 +687,28 @@ UWorld* UWorld::CreateWorld(const EWorldType InWorldType, bool bInformEngineOfWo
 
 UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld* InWorld)
 {
-//	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
-//	Parameters.DestName = InWorld->GetFName();
-//	Parameters.DestClass = InWorld->GetClass();
-//	Parameters.DuplicateMode = EDuplicateMode::PIE;
-//	Parameters.PortFlags = PPF_DuplicateForPIE;
-//
-//	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
-//
-//	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
-//
-//	return DuplicatedWorld;
-//}
+	//	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
+	//	Parameters.DestName = InWorld->GetFName();
+	//	Parameters.DestClass = InWorld->GetClass();
+	//	Parameters.DuplicateMode = EDuplicateMode::PIE;
+	//	Parameters.PortFlags = PPF_DuplicateForPIE;
+	//
+	//	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
+	//
+	//	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
+	//
+	//	return DuplicatedWorld;
+	//}
 	return nullptr;
+}
+
+void UWorld::Serialize(FStructuredArchive::FRecord Record)
+{
+	Super::Serialize(Record);   // "Properties"
+
+	// 레벨은 월드가 소유하므로 그 자리에 쓴다 (11번과 같은 in place 방식)
+	PersistentLevel->Serialize(Record.EnterRecord("PersistentLevel"));
+
+	// (선택) 메인 카메라는 레벨에 속하지 않아 따로 쓴다. PIE 시작 시점이나 에디터 시점을 복원할 때 쓸 수 있다.
+	// MainCamera->GetCameraComponent()->Serialize(Record.EnterRecord("MainCamera"));
 }

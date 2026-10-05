@@ -42,6 +42,7 @@ namespace FMath
 		return Value;
 	}
 
+
 	static inline float RadiansToDegrees(float Radian)
 	{
 		return Radian * (180.0f / PI);

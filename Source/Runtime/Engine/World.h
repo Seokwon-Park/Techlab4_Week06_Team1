@@ -99,6 +99,8 @@ public:
 
 	bool IsPlayInEditor() const { return WorldType == EWorldType::PIE; }
 
+	using Super::Serialize;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 private:
 	EWorldType WorldType = EWorldType::None;
 

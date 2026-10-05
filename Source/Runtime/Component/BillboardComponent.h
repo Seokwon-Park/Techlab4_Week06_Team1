@@ -34,6 +34,8 @@ public:
 
 	virtual void Serialize(json& Handle, bool bIsLoading) override;
 
+	using Super::Serialize;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 protected:
 	UMaterial* Material = nullptr;
 	UStaticMesh* QuadMesh = nullptr;

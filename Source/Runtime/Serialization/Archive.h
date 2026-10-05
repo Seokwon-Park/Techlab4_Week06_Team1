@@ -20,6 +20,8 @@ public:
 	virtual int64 Tell() { return -1; }
 	virtual void Seek(int64 InPos) {};
 
+	virtual int64 TotalSize() { return -1; }
+
 	virtual FArchive& operator<<(UObject*& Value) { return *this; };
 	virtual FArchive& operator<<(FName& Value) { return *this; }
 

@@ -64,6 +64,50 @@ void AActor::RegisterAllActorTickFunctions(bool bRegister)
 	}
 }
 
+void AActor::Serialize(FStructuredArchive::FRecord Record)
+{
+    Super::Serialize(Record);   // "Properties"
+
+    FArchive& Ar = Record.GetUnderlyingArchive();
+
+    TArray<UActorComponent*> SavedComponents;
+    if (Ar.IsSaving())
+    {
+        for (UActorComponent* Component : Components)
+            if (Component)
+                SavedComponents.Add(Component);
+    }
+
+    int32 Num = SavedComponents.Num();
+    FStructuredArchive::FArray ComponentArray = Record.EnterArray("Components", Num);
+    for (int32 i = 0; i < Num; ++i)
+    {
+        FStructuredArchive::FRecord ComponentRecord = ComponentArray.EnterElement().EnterRecord();
+
+        if (Ar.IsSaving())
+        {
+            UActorComponent* Component = SavedComponents[i];
+            FString Name = Component->GetName();
+            FString ClassName = Component->GetClass()->Name;
+            ComponentRecord << SA_VALUE("Name", Name) << SA_VALUE("Class", ClassName);
+            Component->Serialize(ComponentRecord);
+            continue;
+        }
+
+        FString Name, ClassName;
+        ComponentRecord << SA_VALUE("Name", Name) << SA_VALUE("Class", ClassName);
+
+        UActorComponent* Component = FindComponentByName(FName(Name));
+        if (!Component || Component->GetClass()->Name != ClassName)
+        {
+            HTR_LOG(Warning, "Load: {} has no component {} ({}), skipped", GetClass()->Name, Name, ClassName);
+            continue;
+        }
+        Component->Serialize(ComponentRecord);
+    }
+}
+
+
 void AActor::RemoveOwnedComponent(UActorComponent* Component)
 {
     for (uint32 i = 0; i < Components.Num(); ++i)
@@ -206,4 +250,12 @@ void AActor::DestroyComponent(UActorComponent* Component)
     RemoveOwnedComponent(Component);
     delete Component;
     return;
+}
+
+UActorComponent* AActor::FindComponentByName(FName Name) const
+{
+    for (UActorComponent* Component : Components)
+        if (Component && Component->GetFName() == Name)
+            return Component;
+    return nullptr;
 }

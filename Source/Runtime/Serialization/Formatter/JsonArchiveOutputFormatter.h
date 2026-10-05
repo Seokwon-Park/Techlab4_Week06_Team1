@@ -12,8 +12,9 @@ public:
 	FJsonArchiveOutputFormatter& operator=(FJsonArchiveOutputFormatter&&) = delete;
 	FJsonArchiveOutputFormatter& operator=(const FJsonArchiveOutputFormatter&) = delete;
 
-	explicit FJsonArchiveOutputFormatter(FArchive& InInner, FJsonValue InRoot);
-	virtual ~FJsonArchiveOutputFormatter() {};
+	explicit FJsonArchiveOutputFormatter(FArchive& InInner);
+	// 만든 트리를 문자열로 바꿔 Inner에 쓴다. FStructuredArchive가 먼저 닫혀 있어야 한다.
+	virtual ~FJsonArchiveOutputFormatter();
 
 	virtual FArchive& GetUnderlyingArchive() override { return Inner; };
 	virtual bool HasDocumentTree() const override { return true; };
@@ -73,7 +74,7 @@ public:
 	virtual void Serialize(void* Data, uint64 DataSize) override;
 
 private:
-	json& Top() { return *ValueStack.Top(); }
+	FJsonValue& Top() { return *ValueStack.Top(); }
 
 	FArchive& Inner;
 	FJsonValue Root;

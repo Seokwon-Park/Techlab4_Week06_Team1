@@ -144,3 +144,15 @@ void UBillboardComponent::GetWorldTransformedMatrix(FMatrix* OutWorldMatrix) con
 	OutWorldMatrix->M[3][2] = WorldPos.Z;
 	OutWorldMatrix->M[3][3] = 1.0f;
 }
+
+void UBillboardComponent::Serialize(FStructuredArchive::FRecord Record)
+{
+	Super::Serialize(Record);
+
+	UMaterial* Loaded = Material;
+	UMaterial::SerializeMaterialReference(Record.EnterField("Material"), Loaded);
+
+	// 불러오기에 실패하면(null) 생성자가 넣어 둔 기본 머티리얼을 유지한다
+	if (Record.GetUnderlyingArchive().IsLoading() && Loaded)
+		Material = Loaded;
+}

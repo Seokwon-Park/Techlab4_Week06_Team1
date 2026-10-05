@@ -1,5 +1,6 @@
 #include "EnginePCH.h"
 
+#include "StructuredArchive.h"
 #include "StructuredArchiveSlots.h"
 
 FStructuredArchiveSlot FStructuredArchive::Open()
@@ -101,6 +102,7 @@ void FStructuredArchive::SetScope(const FSlotBase& Slot)
 		{
 		case EElementType::Record:
 			Formatter.LeaveRecord();
+			break;
 		case EElementType::Array:
 			Formatter.LeaveArray();
 			break;
@@ -126,4 +128,206 @@ void FStructuredArchive::SetScope(const FSlotBase& Slot)
 FArchive& FSlotBase::GetUnderlyingArchive() const
 {
 	return StructuredArchive.GetUnderlyingArchive();
+}
+
+//////////// FStructuredArchiveSlot ////////////
+
+FStructuredArchiveRecord FStructuredArchiveSlot::EnterRecord()
+{
+	const int32 NewDepth = StructuredArchive.EnterSlotAsType(*this, FStructuredArchive::EElementType::Record);
+	StructuredArchive.Formatter.EnterRecord();
+	return FStructuredArchiveRecord(StructuredArchive, NewDepth, ElementId);
+}
+
+FStructuredArchiveArray FStructuredArchiveSlot::EnterArray(int32& Num)
+{
+	const int32 NewDepth = StructuredArchive.EnterSlotAsType(*this, FStructuredArchive::EElementType::Array);
+	StructuredArchive.Formatter.EnterArray(Num);
+	return FStructuredArchiveArray(StructuredArchive, NewDepth, ElementId);
+}
+
+FStructuredArchiveStream FStructuredArchiveSlot::EnterStream()
+{
+	const int32 NewDepth = StructuredArchive.EnterSlotAsType(*this, FStructuredArchive::EElementType::Stream);
+	StructuredArchive.Formatter.EnterStream();
+	return FStructuredArchiveStream(StructuredArchive, NewDepth, ElementId);
+}
+
+FStructuredArchiveMap FStructuredArchiveSlot::EnterMap(int32& Num)
+{
+	const int32 NewDepth = StructuredArchive.EnterSlotAsType(*this, FStructuredArchive::EElementType::Map);
+	StructuredArchive.Formatter.EnterMap(Num);
+	return FStructuredArchiveMap(StructuredArchive, NewDepth, ElementId);
+}
+
+// 값 쓰기: 슬롯 진입 확인 → 포맷터에 값 전달 → 슬롯에서 바로 나온다
+void FStructuredArchiveSlot::operator<<(uint8& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(uint16& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(uint32& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(uint64& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(int8& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(int16& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(int32& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(int64& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(float& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(double& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(bool& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(FString& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(FName& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::operator<<(UObject*& V)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(V);
+	StructuredArchive.LeaveSlot();
+}
+
+void FStructuredArchiveSlot::Serialize(void* Data, uint64 DataSize)
+{
+	StructuredArchive.EnterSlot(*this);
+	StructuredArchive.Formatter.Serialize(Data, DataSize);
+	StructuredArchive.LeaveSlot();
+}
+
+//////////// FStructuredArchiveRecord ////////////
+
+FStructuredArchiveSlot FStructuredArchiveRecord::EnterField(FArchiveFieldName Name)
+{
+	StructuredArchive.SetScope(*this);
+	StructuredArchive.CurrentSlotElementId = StructuredArchive.ElementIdGenerator.Generate();
+	StructuredArchive.Formatter.EnterField(Name);
+	return FStructuredArchiveSlot(StructuredArchive, Depth, StructuredArchive.CurrentSlotElementId);
+}
+
+FStructuredArchiveRecord FStructuredArchiveRecord::EnterRecord(FArchiveFieldName Name)
+{
+	return EnterField(Name).EnterRecord();
+}
+
+FStructuredArchiveArray FStructuredArchiveRecord::EnterArray(FArchiveFieldName Name, int32& Num)
+{
+	return EnterField(Name).EnterArray(Num);
+}
+
+FStructuredArchiveStream FStructuredArchiveRecord::EnterStream(FArchiveFieldName Name)
+{
+	return EnterField(Name).EnterStream();
+}
+
+TOptional<FStructuredArchiveSlot> FStructuredArchiveRecord::TryEnterField(FArchiveFieldName Name, bool bEnterWhenWriting)
+{
+	StructuredArchive.SetScope(*this);
+	if (!StructuredArchive.Formatter.TryEnterField(Name, bEnterWhenWriting))
+	{
+		return TOptional<FStructuredArchiveSlot>();
+	}
+	StructuredArchive.CurrentSlotElementId = StructuredArchive.ElementIdGenerator.Generate();
+	return FStructuredArchiveSlot(StructuredArchive, Depth, StructuredArchive.CurrentSlotElementId);
+}
+
+//////////// FStructuredArchiveArray ////////////
+
+FStructuredArchiveSlot FStructuredArchiveArray::EnterElement()
+{
+	StructuredArchive.SetScope(*this);
+	StructuredArchive.CurrentSlotElementId = StructuredArchive.ElementIdGenerator.Generate();
+	StructuredArchive.Formatter.EnterArrayElement();
+	return FStructuredArchiveSlot(StructuredArchive, Depth, StructuredArchive.CurrentSlotElementId);
+}
+
+//////////// FStructuredArchiveStream ////////////
+
+FStructuredArchiveSlot FStructuredArchiveStream::EnterElement()
+{
+	StructuredArchive.SetScope(*this);
+	StructuredArchive.CurrentSlotElementId = StructuredArchive.ElementIdGenerator.Generate();
+	StructuredArchive.Formatter.EnterStreamElement();
+	return FStructuredArchiveSlot(StructuredArchive, Depth, StructuredArchive.CurrentSlotElementId);
+}
+
+//////////// FStructuredArchiveMap ////////////
+
+FStructuredArchiveSlot FStructuredArchiveMap::EnterElement(FString& Name)
+{
+	StructuredArchive.SetScope(*this);
+	StructuredArchive.CurrentSlotElementId = StructuredArchive.ElementIdGenerator.Generate();
+	StructuredArchive.Formatter.EnterMapElement(Name);
+	return FStructuredArchiveSlot(StructuredArchive, Depth, StructuredArchive.CurrentSlotElementId);
 }

@@ -56,7 +56,7 @@ class FStructuredArchiveRecord final : public FSlotBase
 public:
 	FStructuredArchiveSlot EnterField(FArchiveFieldName Name);
 	FStructuredArchiveRecord EnterRecord(FArchiveFieldName Name);
-	FStructuredArchiveArray EnterArray(FArchiveFieldName* Name, int32& Num);
+	FStructuredArchiveArray EnterArray(FArchiveFieldName Name, int32& Num);
 	FStructuredArchiveStream EnterStream(FArchiveFieldName Name);
 
 	TOptional<FStructuredArchiveSlot> TryEnterField(FArchiveFieldName Name, bool bEnterWhenWriting);
