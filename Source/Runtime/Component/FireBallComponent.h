@@ -23,8 +23,8 @@ public:
 
 
 private:
-	float Intensity = 1.0f;
+	float Intensity = 1.8f;
 	float Radius = 6.5f;
-	float RadiusFalloff = 1.6f;
-	FVector4 LightColor = FVector4(1.0f, 0.0f, 0.0f, 1.0f);
+	float RadiusFalloff = 3.0f;
+	FVector4 LightColor = FVector4(1.0f, 0.0f, 0.8f, 1.0f);
 };
