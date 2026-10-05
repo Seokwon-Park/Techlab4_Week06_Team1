@@ -5,6 +5,14 @@
 #include "Component/PrimitiveComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
+#include "Render/FogInfo.h"
+
+struct FExponentialHeightFogSceneInfo
+{
+	uint32 Id;
+	FFogInfo FogInfo;
+};
+
 
 class FScene
 {
@@ -14,6 +22,9 @@ public:
 	// 모든 프록시를 한 번에 지운다. 액터를 통째로 지우기 전(ClearWorld)에 불러야 지워진 컴포넌트를 가리키는 프록시가 남지 않는다.
 	void RemoveAllPrimitives();
 
+	void AddFogInfo(uint32 Id, const FFogInfo& FogInfo);
+	void RemoveFogInfo(uint32 Id);
+	void UpdateFogInfo(uint32 Id, const FFogInfo& FogInfo);
 	void UpdateAllTransforms();
 
 	void BuildBVH();
@@ -27,6 +38,8 @@ public:
 	TArray<FPrimitiveSceneProxy*> RenderStateDirtyProxies;
 	TArray<FAABB> PrimitiveBounds;
 	TArray<uint8> PrimitiveFlags;
+	
+	TArray<FExponentialHeightFogSceneInfo> FogInfos;
 
 	// 컬링 결과로 프록시를 바로 내보내 컴포넌트를 역참조하지 않는다. 경계는 Build/Refit 때만 계산한다.
 	TBVH<FPrimitiveSceneProxy*> BVH{
@@ -37,6 +50,8 @@ public:
 		}
 	};
 	bool bElementListChanged = false;
+	
+
 
 
 };

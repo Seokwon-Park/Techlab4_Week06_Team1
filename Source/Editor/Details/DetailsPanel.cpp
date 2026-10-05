@@ -542,24 +542,23 @@ namespace
 		ImGui::SameLine(120.0f);
 		ImGui::SetNextItemWidth(-1.0f);
 
+		bool bChanged = false;
+
 		switch (Property.Type)
 		{
 		case EPropertyType::Float:
-			ImGui::DragFloat(Label.c_str(), static_cast<float*>(ValuePtr), 0.1f);
+			bChanged = ImGui::DragFloat(Label.c_str(), static_cast<float*>(ValuePtr), 0.1f);
 			break;
-
 		case EPropertyType::Int:
-			ImGui::DragInt(Label.c_str(), static_cast<int*>(ValuePtr), 1.0f);
+			bChanged = ImGui::DragInt(Label.c_str(), static_cast<int*>(ValuePtr), 1.0f);
 			break;
-
 		case EPropertyType::Bool:
-			ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
+			bChanged =ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
 			break;
-
 		case EPropertyType::Vector:
 		{
 			FVector* Value = static_cast<FVector*>(ValuePtr);
-			ImGui::DragFloat3(Label.c_str(), Value->V, 0.1f);
+			bChanged = ImGui::DragFloat3(Label.c_str(), Value->V, 0.1f);
 			break;
 		}
 		case EPropertyType::Rotator:
@@ -576,10 +575,11 @@ namespace
 			break;
 		}
 
+
 		case EPropertyType::Vector4:
 		{
 			FVector4* Value = static_cast<FVector4*>(ValuePtr);
-			ImGui::DragFloat4(Label.c_str(), &Value->X, 0.1f);
+			bChanged = ImGui::DragFloat4(Label.c_str(), &Value->X, 0.1f);
 			break;
 		}
 
@@ -587,7 +587,7 @@ namespace
 		{
 			// 타입은 Vector4와 같고 위젯만 색상 선택기다
 			FVector4* Value = static_cast<FVector4*>(ValuePtr);
-			ImGui::ColorEdit4(Label.c_str(), &Value->X);
+			bChanged = ImGui::ColorEdit4(Label.c_str(), &Value->X);
 			break;
 		}
 		case EPropertyType::String:
@@ -613,22 +613,22 @@ namespace
 			FTransform Transform = *Value;
 			bool bChange = false;
 
-			bChange |= DrawVector3Controller("Location", Transform.Location.V, 0.0f, 55.0f);
-			bChange |= DrawRotatorAsXYZ("Rotation", Transform.Rotation);
-			bChange |= DrawVector3Controller("Scale", Transform.Scale.V, 1.0f, 55.0f);
+			bChanged |= DrawVector3Controller("Location", Value->Location.V, 0.0f, 55.0f);
+			bChanged |= DrawRotatorAsXYZ("Rotation", Value->Rotation);
+			bChanged |= DrawVector3Controller("Scale", Value->Scale.V, 1.0f, 55.0f);
 
-			if (bChange)
-			{
-				// 씬 컴포넌트면 SetTransform을 거치고, 아니면 값을 직접 쓴다
-				if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
-				{
-					SceneComponent->SetTransform(Transform);
-				}
-				else
-				{
-					*Value = Transform;
-				}
-			}
+			//if (bChange)
+			//{
+			//	// 씬 컴포넌트면 SetTransform을 거치고, 아니면 값을 직접 쓴다
+			//	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+			//	{
+			//		SceneComponent->SetTransform(Transform);
+			//	}
+			//	else
+			//	{
+			//		*Value = Transform;
+			//	}
+			//}
 			break;
 		}
 		case EPropertyType::Object:
@@ -652,6 +652,11 @@ namespace
 		default:
 			ImGui::TextDisabled("(Unsupported)");
 			break;
+		}
+		
+		if(bChanged)
+		{
+			Object->PostEditChangeProperty(Property);
 		}
 	}
 
