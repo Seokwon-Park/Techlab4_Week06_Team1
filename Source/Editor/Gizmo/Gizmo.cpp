@@ -329,7 +329,7 @@ FVector FGizmo::GetRenderLocationForView(const FVector& CameraLocation, const bo
 {
 	if (!Target) return FVector(0, 0, 0);
 	if (bCameraOrthographic) return GetLocation();
-	return (Target->GetRelativeLocation() - CameraLocation).Normalized() * 10.0f + CameraLocation;
+	return (Target->GetWorldLocation() - CameraLocation).Normalized() * 10.0f + CameraLocation;
 }
 
 // 현재 입력 View의 카메라 위치를 반환한다.

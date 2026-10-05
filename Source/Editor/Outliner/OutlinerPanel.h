@@ -9,8 +9,9 @@ class ULevel;
 class AActor;
 class UActorComponent;
 class UPrimitiveComponent;
+class USceneComponent;
 
-using SelectionCallback = std::function<void(UPrimitiveComponent*)>;
+using SelectionCallback = std::function<void(USceneComponent*)>;
 using DeleteActorCallback = std::function<void(AActor*)>;
 
 class FOutlinerPanel : public IEditorPanel
