@@ -13,7 +13,7 @@
 
 #include "Collision/Ray.h"
 #include "Component/BillboardComponent.h"
-
+#include "Component/FireBallComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
 
@@ -156,6 +156,9 @@ void UWorld::GatherRenderPackets(FRenderQueue& RenderQueue, const FLODViewContex
 	// 멤버로 두어 매 프레임 용량을 재사용한다.
 	RenderStats.Reset();
 	VisibleProxies.Reset();
+
+	UpdateFireBallLight(Renderer);
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FrustumCull);
 		// 컬링 단계에서는 프록시 포인터만 모으고, 컴포넌트 역참조(가시성 확인)는 어차피 컴포넌트를 읽는 Gather로 미룬다.
@@ -677,4 +680,56 @@ UWorld* UWorld::CreateWorld(const EWorldType InWorldType, bool bInformEngineOfWo
 	NewWorld->Init();
 
 	return NewWorld;
+}
+
+void UWorld::UpdateFireBallLight(FRenderer* Renderer)
+{
+	if (!Renderer)
+		return;
+
+	FFireBallLightConstants Data{};
+
+	// 기본값: 활성 FireBall 없음
+	Data.PositionRadius = FVector4(0, 0, 0, 0);
+	Data.ColorIntensity = FVector4(0, 0, 0, 0);
+	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
+
+	for (FPrimitiveSceneProxy* Proxy : Scene.Proxies)
+	{
+		if (!Proxy)
+			continue;
+
+		UPrimitiveComponent* Primitive = Proxy->GetComponent();
+		UFireBallComponent* FireBall = Cast<UFireBallComponent>(Primitive);
+
+		if (!FireBall)
+			continue;
+
+		const FVector Position = FireBall->GetWorldLocation();
+		const FVector4 Color = FireBall->GetLightColor();
+
+		Data.PositionRadius = FVector4(
+			Position.X,
+			Position.Y,
+			Position.Z,
+			std::max<float>(FireBall->GetRadius(), 0.001f)
+		);
+
+		Data.ColorIntensity = FVector4(
+			Color.X,
+			Color.Y,
+			Color.Z,
+			std::max<float>(FireBall->GetIntensity(), 0.0f)
+		);
+
+		Data.FalloffEnabled = FVector4(
+			std::max<float>(FireBall->GetRadiusFalloff(), 0.001f),
+			1.0f,
+			0.0f,
+			0.0f
+		);
+		break;
+	}
+
+	Renderer->SetFireBallLight(Data);
 }

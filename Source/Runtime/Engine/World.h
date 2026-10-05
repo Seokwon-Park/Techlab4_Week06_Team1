@@ -97,6 +97,8 @@ public:
 
 	bool IsPlayInEditor() const { return WorldType == EWorldType::PIE; }
 
+	void UpdateFireBallLight(FRenderer* Renderer);
+
 private:
 	EWorldType WorldType = EWorldType::None;
 
