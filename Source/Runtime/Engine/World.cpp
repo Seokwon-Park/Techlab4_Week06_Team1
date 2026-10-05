@@ -106,6 +106,11 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 
 void UWorld::Tick(float DeltaTime)
 {
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateAllTransforms);
+		Scene.UpdateAllTransforms();
+	}
+
 	// 에디터 월드면 더이상 틱을 돌리지 않는다.
 	if (WorldType == EWorldType::Editor) return;
 
@@ -126,10 +131,7 @@ void UWorld::Tick(float DeltaTime)
 		}
 	}
 
-	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateAllTransforms);
-		Scene.UpdateAllTransforms();
-	}
+
 }
 
 void UWorld::ClearWorld()

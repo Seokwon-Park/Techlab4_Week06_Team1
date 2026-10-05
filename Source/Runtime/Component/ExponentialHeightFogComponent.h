@@ -12,7 +12,7 @@ class UExponentialHeightFogComponent final : public USceneComponent
 		PROPERTY(StartDistance)
 		PROPERTY(FogCutoffDistance)
 		PROPERTY(FogMaxOpacity)
-		PROPERTY(FogColor)
+		PROPERTY_TYPE(FogColor, Color)
 	REFLECT_END()
 
 public:
@@ -28,7 +28,7 @@ public:
 		 
 private:
 	//포그의 밀도, 높이에 따른 감소율, 시작 거리, 최대 불투명도, 색상 등을 설정하는 변수들
-	float    FogDensity = 0.5f;
+	float    FogDensity = 0.02f;
 	float    FogHeightFalloff = 0.2f;
 	float    StartDistance = 10.0;
 	float    FogCutoffDistance = 0.0f;

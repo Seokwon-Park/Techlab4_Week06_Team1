@@ -70,5 +70,5 @@ float4 mainPS(PSInput Input) : SV_Target
     float FogAmount = 1.0f - exp(-LineIntegral);
     FogAmount = min(FogAmount, FogMaxOpacity);
 
-    return float4(FogColor.rgb, FogAmount);
+    return float4(FogColor.rgb * FogAmount, FogAmount);
 }

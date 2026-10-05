@@ -11,5 +11,5 @@ AExponentialHeightFogActor::AExponentialHeightFogActor()
 
 	BillboardComponent = CreateDefaultSubobject<UBillboardComponent>("UBillboardComponent");
 	BillboardComponent->SetupAttachment(ExponentialHeightFogComponent);
-
+	BillboardComponent->SetHiddenInDetails(true);
 }

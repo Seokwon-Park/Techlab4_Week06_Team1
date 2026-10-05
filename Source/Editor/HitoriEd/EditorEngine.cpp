@@ -152,7 +152,7 @@ bool UEditorEngine::Init()
 		[this](USceneComponent* Root)
 		{
 			Gizmo->SetTarget(Root);
-			DetailsPanel->SetTarget(Root);
+			DetailsPanel->SetTarget(Root ? Root->GetOwner() : nullptr);
 
 			UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Root);
 			if (!Primitive && Root && Root->GetOwner())
@@ -162,6 +162,12 @@ bool UEditorEngine::Init()
 			}
 			Outline->SetTarget(Primitive);
 		});
+	DetailsPanel->SetSelectionCallback(
+		[this](USceneComponent* SceneComponent)
+		{
+			Gizmo->SetTarget(SceneComponent);
+		}
+	);
 
 	OutlinerPanel->SetDeleteActorCallback(
 		[this](AActor* Actor)
@@ -403,7 +409,7 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 void UEditorEngine::RenderFogPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation,const FMatrix& ViewProjection, FRenderQueue& RenderQueue)
 {
 	
-	const TArray<FExponentialHeightFogSceneInfo>& SceneFogInfos = World->GetScene().FogInfos;
+	const TArray<FExponentialHeightFogSceneInfo>& SceneFogInfos = GetActiveWorld()->GetScene().FogInfos;
 
 	if (SceneFogInfos.Num() == 0)
 		return;
@@ -596,7 +602,7 @@ void UEditorEngine::UpdateGizmoAndPicking()
 
 	if (FInputSystem::IsMousePressed(EMouseButton::Left) && !Gizmo->IsUsing() && Gizmo->GetHoveredAxis() < 0)
 	{
-		MultipleViewportsAdapter.PickActiveView(LocalMousePosition, *World);
+		MultipleViewportsAdapter.PickActiveView(LocalMousePosition, *GetActiveWorld());
 		MultipleViewportsAdapter.ApplyLastPickToOutliner(*OutlinerPanel);
 	}
 
