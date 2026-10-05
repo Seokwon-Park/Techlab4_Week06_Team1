@@ -295,6 +295,7 @@ void UEditorEngine::TickWorldAndEditor(const float DeltaTime)
 // 공유 월드 캡처로 활성 View별 렌더 큐를 만들고 렌더한다.
 void UEditorEngine::RenderMultipleViewports()
 {
+	GetActiveWorld()->UpdateFireBallLight(Renderer);
 	for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
 	{
 		const bool bActive = MultipleViewportsAdapter.IsViewActive(ViewIndex);
@@ -673,23 +674,6 @@ void UEditorEngine::DeleteComponent(UActorComponent* Component)
 	Outline->SetTarget(nullptr);
 	Component->GetOwner()->DestroyComponent(Component);
 }
-
-void UEditorEngine::StartPlayInEditorSession()
-{
-	FWorldContext& PIEContext = CreateNewWorldContext(EWorldType::PIE);
-	PlayWorld = CreatePIEWorldByDuplication(PIEContext, EditorWorld);
-	
-	OnActiveWorldChanged();
-}
-
-UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext& PIEContext, UWorld* InEditorWorld)
-{
-	UWorld* NewPIEWorld = UWorld::CreateWorld(EWorldType::PIE, false);
-	NewPIEWorld->SetWorldType(EWorldType::PIE);
-
-	return NewPIEWorld;
-}
-
 
 // 씬 변경으로 무효화된 에디터의 선택 참조를 모두 해제한다.
 void UEditorEngine::ResetSceneSelection()

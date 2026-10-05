@@ -15,6 +15,7 @@
 #include "Component/BillboardComponent.h"
 #include "Component/ExponentialHeightFogComponent.h"
 
+#include "Component/FireBallComponent.h"
 #include "Component/StaticMeshComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
 
@@ -122,6 +123,12 @@ void UWorld::Tick(float DeltaTime)
 			BeginPlayList.Dequeue();
 		}
 
+	
+		SCOPE_CYCLE_COUNTER(STAT_ActorTick);
+		// 모든 Actor를 도는 대신 등록된 Tick 함수(메인 카메라 포함)만 실행한다.
+		TickTaskManager.RunAllTickGroups(DeltaTime);
+
+		for (ULevel* Level : Levels)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ActorTick);
 			// 모든 Actor를 도는 대신 등록된 Tick 함수(메인 카메라 포함)만 실행한다.
@@ -167,6 +174,9 @@ void UWorld::GatherRenderPackets(FRenderQueue& RenderQueue, const FLODViewContex
 	// 멤버로 두어 매 프레임 용량을 재사용한다.
 	RenderStats.Reset();
 	VisibleProxies.Reset();
+
+	UpdateFireBallLight(Renderer);
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FrustumCull);
 		// 컬링 단계에서는 프록시 포인터만 모으고, 컴포넌트 역참조(가시성 확인)는 어차피 컴포넌트를 읽는 Gather로 미룬다.
@@ -690,20 +700,82 @@ UWorld* UWorld::CreateWorld(const EWorldType InWorldType, bool bInformEngineOfWo
 	return NewWorld;
 }
 
-UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld* InWorld)
+void UWorld::UpdateFireBallLight(FRenderer* Renderer)
 {
-	//	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
-	//	Parameters.DestName = InWorld->GetFName();
-	//	Parameters.DestClass = InWorld->GetClass();
-	//	Parameters.DuplicateMode = EDuplicateMode::PIE;
-	//	Parameters.PortFlags = PPF_DuplicateForPIE;
-	//
-	//	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
-	//
-	//	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
-	//
-	//	return DuplicatedWorld;
-	//}
+	if (!Renderer)
+		return;
+
+	FFireBallLight Data{};
+	FFireBallLightConstants Constants{};
+
+	Constants.LightCount = 0;
+
+	// 기본값: 활성 FireBall 없음
+	Data.PositionRadius = FVector4(0, 0, 0, 0);
+	Data.ColorIntensity = FVector4(0, 0, 0, 0);
+	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
+
+	for (FPrimitiveSceneProxy* Proxy : Scene.Proxies)
+	{
+		if (Constants.LightCount >= MaxFireBalls)
+		{
+			break; // 최대 FireBall 수를 초과하면 루프 종료
+		}
+
+		if (!Proxy)
+			continue;
+
+		UPrimitiveComponent* Primitive = Proxy->GetComponent();
+		UFireBallComponent* FireBall = Cast<UFireBallComponent>(Primitive);
+
+		if (!FireBall)
+			continue;
+
+		const FVector Position = FireBall->GetWorldLocation();
+		const FVector4 Color = FireBall->GetLightColor();
+
+		Data.PositionRadius = FVector4(
+			Position.X,
+			Position.Y,
+			Position.Z,
+			std::max<float>(FireBall->GetRadius(), 0.001f)
+		);
+
+		Data.ColorIntensity = FVector4(
+			Color.X,
+			Color.Y,
+			Color.Z,
+			std::max<float>(FireBall->GetIntensity(), 0.0f)
+		);
+
+		Data.FalloffEnabled = FVector4(
+			std::max<float>(FireBall->GetRadiusFalloff(), 0.001f),
+			1.0f,
+			0.0f,
+			0.0f
+		);
+
+		Constants.Light[Constants.LightCount] = Data;
+		Constants.LightCount++;
+	}
+
+	Renderer->SetFireBallLight(Constants);
+}
+
+UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld * InWorld)
+{
+//	//	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
+//	//	Parameters.DestName = InWorld->GetFName();
+//	//	Parameters.DestClass = InWorld->GetClass();
+//	//	Parameters.DuplicateMode = EDuplicateMode::PIE;
+//	//	Parameters.PortFlags = PPF_DuplicateForPIE;
+//	//
+//	//	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
+//	//
+//	//	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
+//	//
+//	//	return DuplicatedWorld;
+//	//}
 	return nullptr;
 }
 
