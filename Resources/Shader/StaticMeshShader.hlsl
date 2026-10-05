@@ -17,11 +17,18 @@ cbuffer MaterialParams : register(b1)
     float Padding;
 };
 
+struct FireBallLight
+{
+    float4 PositionRadius;
+    float4 ColorIntensity;
+    float4 FalloffEnabled;
+};
+
 cbuffer FireBallLightConstants : register(b3)
 {
-    float4 FireBallPositionRadius;
-    float4 FireBallColorIntensity;
-    float4 FireBallFalloffEnabled;
+    FireBallLight FireBalls[16];
+    uint FireBallCount;
+    float3 FireBallLightPadding;
 };
 
 struct VS_INPUT
@@ -65,30 +72,43 @@ PS_INPUT mainVS(VS_INPUT input)
 
 float4 mainPS(PS_INPUT input) : SV_TARGET
 {
-    float distance = length(FireBallPositionRadius.xyz - input.worldPos);
-    float radius = max(FireBallPositionRadius.w, 0.001f);
-    
-    float falloff = saturate(1.0f - distance / radius);
-    falloff = pow(falloff, max(FireBallFalloffEnabled.x, 0.001f));
-    
-    float enabled = FireBallFalloffEnabled.y;
-    float intensity = FireBallColorIntensity.w;
-    
-    float3 lightDir = normalize(FireBallPositionRadius.xyz - input.worldPos);
-    
     // Mesh 표면색
     float4 texColor = g_txColor.Sample(g_Sample, input.uv + UVOffset);
     float4 albedo = texColor * BaseColor;
-
-    float3 N = normalize(input.normal);  // 현재 표면이 향하고 있는 방량
-    float pointNdotL = saturate(dot(N, lightDir));
+    
+    float3 N = normalize(input.normal); // 현재 표면이 향하고 있는 방향
+    
     float directionNdotL = saturate(dot(N, -LightDir));
+    
+    float3 totalPointLight = float3(0, 0, 0);
+    for (uint i = 0; i < FireBallCount; ++i)
+    {
+        FireBallLight fireBall = FireBalls[i];
+        float4 PositionRadius = fireBall.PositionRadius;
+        float4 ColorIntensity = fireBall.ColorIntensity;
+        float4 FalloffEnabled = fireBall.FalloffEnabled;
+        
+        float distance = length(PositionRadius.xyz - input.worldPos);
+        float radius = max(PositionRadius.w, 0.001f);
+        
+        float falloff = saturate(1.0f - distance / radius);
+        falloff = pow(falloff, max(FalloffEnabled.x, 0.001f));
+        
+        float enabled = FalloffEnabled.y;
+        float intensity = ColorIntensity.w;
+        
+        float3 lightDir = normalize(PositionRadius.xyz - input.worldPos);
+        
+        float pointNdotL = saturate(dot(N, lightDir));
+        float3 pointLight = ColorIntensity.rgb * pointNdotL * falloff * enabled * intensity;
+        totalPointLight += pointLight;
+    }
+
     float3 lighting = AmbientColor + LightColor * directionNdotL;
     
     // Opaque는 알파를 1로 고정한다. 뷰포트 RT를 ImGui가 알파 블렌딩으로 그리므로 알파가 남으면 비쳐 보인다
     float alpha = bOpaque > 0.5f ? 1.0f : albedo.a;
     
-    float3 pointLight = FireBallColorIntensity.rgb * pointNdotL * falloff * enabled * intensity;
-    float3 finalRGB = albedo.rgb * (lighting + pointLight);
+    float3 finalRGB = albedo.rgb * (lighting + totalPointLight);
     return float4(finalRGB, alpha);
 }

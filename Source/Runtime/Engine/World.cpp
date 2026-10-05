@@ -687,7 +687,10 @@ void UWorld::UpdateFireBallLight(FRenderer* Renderer)
 	if (!Renderer)
 		return;
 
-	FFireBallLightConstants Data{};
+	FFireBallLight Data{};
+	FFireBallLightConstants Constants{};
+
+	Constants.LightCount = 0;
 
 	// 기본값: 활성 FireBall 없음
 	Data.PositionRadius = FVector4(0, 0, 0, 0);
@@ -696,6 +699,11 @@ void UWorld::UpdateFireBallLight(FRenderer* Renderer)
 
 	for (FPrimitiveSceneProxy* Proxy : Scene.Proxies)
 	{
+		if (Constants.LightCount >= MaxFireBalls)
+		{
+			break; // 최대 FireBall 수를 초과하면 루프 종료
+		}
+
 		if (!Proxy)
 			continue;
 
@@ -728,8 +736,11 @@ void UWorld::UpdateFireBallLight(FRenderer* Renderer)
 			0.0f,
 			0.0f
 		);
-		break;
+
+		Constants.Light[Constants.LightCount] = Data;
+		Constants.LightCount++;
 	}
 
-	Renderer->SetFireBallLight(Data);
+	Renderer->SetFireBallLight(Constants);
+
 }

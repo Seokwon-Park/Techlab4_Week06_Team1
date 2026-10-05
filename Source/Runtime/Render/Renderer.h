@@ -8,6 +8,7 @@
 #include "Occlusion/GPUOcclusion.h"
 
 constexpr uint32 ObjectSlotBytes = 256;
+constexpr uint32 MaxFireBalls = 16;
 
 struct FPerObjectConstants
 {
@@ -38,11 +39,18 @@ struct FOcclusionMeasureResult
 	uint32 FalseCulls = 0;        // 그중 실제로는 픽셀이 보인 드로우 수. 0이어야 한다
 };
 
-struct alignas(16) FFireBallLightConstants
+struct alignas(16) FFireBallLight
 {
 	FVector4 PositionRadius; // xyz: 위치, w: 반경
 	FVector4 ColorIntensity; // rgb: 색상, w: 강도
 	FVector4 FalloffEnabled; // x: 반경 감쇠, y: 사용 여부, zw: 패딩
+};
+
+struct alignas(16) FFireBallLightConstants
+{
+	FFireBallLight Light[MaxFireBalls];
+	uint32 LightCount;
+	uint32 Padding[3] = {};
 };
 
 class FRenderer
