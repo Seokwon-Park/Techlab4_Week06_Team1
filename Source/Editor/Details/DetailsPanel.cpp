@@ -8,6 +8,8 @@
 #include "Component/TextRenderComponent.h"
 #include "Component/ParticleSubUVComponent.h"
 #include "Component/SpotLightComponent.h"
+#include "Component/RotatingMovementComponent.h"
+#include "Component/ProjectileMovementComponent.h"
 #include "Asset/AssetManager.h"
 #include "Render/Material.h"
 #include "Render/Texture2D.h"
@@ -729,6 +731,18 @@ namespace
 				ComponentNameInputBuf[0] = '\0';
 				ImGui::CloseCurrentPopup();
 			}*/
+			if (ImGui::MenuItem("Rotating Movememnt Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(URotatingMovementComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("Projectile Movement Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UProjectileMovementComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
 			ImGui::EndPopup();
 		}
 	}

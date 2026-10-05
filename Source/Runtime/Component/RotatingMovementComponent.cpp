@@ -24,5 +24,5 @@ void URotatingMovementComponent::TickComponent(float DeltaTime)
 	}
 
 	const bool bEnableCollision = false;
-	MoveUpdatedComponent(DeltaLocation, NewRotation.ToFRotator(), bEnableCollision);
+	MoveUpdatedComponent(DeltaLocation, NewRotation.ToFRotator(), bEnableCollision, nullptr);
 }

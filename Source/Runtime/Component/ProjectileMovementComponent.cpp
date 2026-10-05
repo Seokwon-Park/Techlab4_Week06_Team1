@@ -36,7 +36,7 @@ void UProjectileMovementComponent::InitializeComponent()
 
 		if (bRotationFollowsVelocity)
 		{
-						
+
 		}
 
 		UpdateComponentVelocity();
@@ -69,6 +69,11 @@ void UProjectileMovementComponent::SetVelocityInLocalSpace(FVector NewVelocity)
 	}
 }
 
+FVector UProjectileMovementComponent::LimitVelocity(FVector NewVelocity) const
+{
+	return FVector();
+}
+
 FVector UProjectileMovementComponent::ComputeVelocity(FVector InitialVelocity, float DeltaTime) const
 {
 	// v = v0 + a*t
@@ -94,6 +99,8 @@ FVector UProjectileMovementComponent::ComputAcceleration(const FVector& InVeloci
 
 	Acceleration.Z += Gravity;
 	
+	// TODO : Pending
+
 	if (bIsHomingProjectile && HomingTargetComponent != nullptr)
 	{
 		Acceleration += ComputeHomingAcceleration(InVelocity, DeltaTime);
@@ -106,4 +113,19 @@ FVector UProjectileMovementComponent::ComputeHomingAcceleration(const FVector& I
 {
 	FVector HomingAcceleration = (HomingTargetComponent->GetWorldLocation() - UpdatedComponent->GetWorldLocation()).Normalized();
 	return HomingAcceleration;
+}
+
+void UProjectileMovementComponent::AddForce(FVector Force)
+{
+	PendingForce += Force;
+}
+
+FVector UProjectileMovementComponent::GetPendingForce() const
+{
+	return PendingForce;
+}
+
+void UProjectileMovementComponent::ClearPendingForce(bool bClearImmediateForce)
+{
+	PendingForce = FVector::ZeroVector;
 }

@@ -22,11 +22,12 @@ public:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime) override;
 
-
 	virtual void SetUpdatedComponent(USceneComponent* NewComponent);
 	virtual void UpdateComponentVelocity();
 
-	virtual bool MoveUpdatedComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep);
+	virtual FVector ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& HIt) const;
+
+	virtual bool MoveUpdatedComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep, FHitResult* Hit);
 
 	virtual void StopMovementImmediately();
 };

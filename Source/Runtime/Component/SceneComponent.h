@@ -3,6 +3,7 @@
 #include "../Math/Transform.h"
 #include "ActorComponent.h"
 #include "Math/Box.h"
+#include "Collision/HitResult.h"
 
 enum class EAttachmentRule
 {
@@ -73,10 +74,10 @@ public:
 	void SetWorldLocation(FVector NewLocation, bool bSweep);
 	void SetWorldRotation(FRotator NewRotation, bool bSweep);
 	void SetWorldLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep);
-	void SetWorldScale3D(FVector NewScale);
-	void SetWorldTransform(const FTransform& NewTransform, bool bSweep);
-	void SetWorldTransform(const FMatrix& InWorldMatrix);
-	bool MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep);
+	void SetWorldScale3D(FVector NewScale);	
+	void SetWorldTransform(const FMatrix& InWorldMatrix, bool bSweep);
+
+	virtual bool MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep, FHitResult* Hit = nullptr);
 
 	void MarkTransformDirty();
 	virtual void OnTransformDirty() {};

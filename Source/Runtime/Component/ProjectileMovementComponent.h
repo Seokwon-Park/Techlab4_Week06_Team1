@@ -12,9 +12,9 @@ public:
 	UProjectileMovementComponent();
 
 	// Projectile
-	float InintialSpeed;
-	float MaxSpeed;
-	float ProjectileGravityScale;
+	float InintialSpeed = 0.0f;
+	float MaxSpeed = 0.0f;
+	float ProjectileGravityScale = 1.0f;
 
 	bool bRotationFollowsVelocity;
 	bool bInitialVelocityInLocalSpace;

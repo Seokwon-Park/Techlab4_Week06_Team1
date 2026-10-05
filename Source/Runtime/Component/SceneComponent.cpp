@@ -12,7 +12,6 @@ USceneComponent::~USceneComponent()
 		Child->AttachParent = nullptr;
 	}
 	AttachChildren.Reset();
-}
 
 	DetachFromParent();
 }
@@ -41,7 +40,7 @@ void USceneComponent::SetupAttachment(USceneComponent* InParent, EAttachmentRule
 		{
 			AttachParent->AttachChildren.Add(this);
 		}
-		SetWorldTransform(WorldMatrix);
+		SetWorldTransform(WorldMatrix, false);
 	}
 	else
 	{
@@ -78,7 +77,7 @@ void USceneComponent::DetachFromParent(EAttachmentRule Rule)
 			}
 		}
 		AttachParent = nullptr;
-		SetWorldTransform(WorldMatrix);
+		SetWorldTransform(WorldMatrix, false);
 	}
 	else
 	{
@@ -146,7 +145,7 @@ FMatrix USceneComponent::GetWorldMatrix() const
 }
 
 
-void USceneComponent::SetWorldTransform(const FMatrix& InWorldMatrix)
+void USceneComponent::SetWorldTransform(const FMatrix& InWorldMatrix, bool bSweep)
 {
 	FMatrix LocalMatrix = InWorldMatrix;
 	if (AttachParent)
@@ -226,14 +225,8 @@ void USceneComponent::SetWorldScale3D(FVector NewScale)
 {
 }
 
-void USceneComponent::SetWorldTransform(const FTransform& NewTransform, bool bSweep)
-{
-}
-
-bool USceneComponent::MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep)
-{
-	// TODO : Check Sweep, Add FHitResult
-	
+bool USceneComponent::MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep, FHitResult* Hit)
+{		
 	SetWorldLocationAndRotation(Transform.Location + Delta, NewRotation, bSweep);
 
 	return true;

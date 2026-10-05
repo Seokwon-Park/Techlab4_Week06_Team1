@@ -18,6 +18,16 @@ void UMovementComponent::InitializeComponent()
 	}
 }
 
+void UMovementComponent::BeginPlay()
+{
+	Super::BeginPlay();
+}
+  
+void UMovementComponent::TickComponent(float DeltaTime)
+{
+	Super::TickComponent(DeltaTime);
+}
+
 void UMovementComponent::SetUpdatedComponent(USceneComponent* NewComponent)
 {
 	if (NewComponent == nullptr)
@@ -36,11 +46,16 @@ void UMovementComponent::UpdateComponentVelocity()
 	}
 }
 
-bool UMovementComponent::MoveUpdatedComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep)
+FVector UMovementComponent::ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& HIt) const
+{
+	return FVector();
+}
+
+bool UMovementComponent::MoveUpdatedComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep, FHitResult* Hit)
 {
 	if (UpdatedComponent)
 	{
-		return UpdatedComponent->MoveComponent(Delta, NewRotation, bSweep);		
+		return UpdatedComponent->MoveComponent(Delta, NewRotation, bSweep, Hit);		
 	}
 
 	return false;
