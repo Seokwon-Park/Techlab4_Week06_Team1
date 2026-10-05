@@ -351,7 +351,7 @@ void FMultipleViewportsAdapter::UpdateInput(
     const float MouseSensitivity)
 {
     const int WheelDelta = FInputSystem::GetWheelDelta(); // 이 Hook은 프레임마다 정확히 한 번만 호출한다.
-    if (FInputSystem::IsMouseReleased(EMouseButton::Right))
+    if (ImGui::IsKeyReleased(ImGuiKey_MouseRight))
         InputState = EndCapture(InputState);
     const int32 PointerViewIndex = DetermineHoveredView(LocalMousePosition, ViewRects);
     // 우클릭 시작 위치를 Capture하고, Capture 밖에서는 좌클릭으로만 선택을 바꾼다.

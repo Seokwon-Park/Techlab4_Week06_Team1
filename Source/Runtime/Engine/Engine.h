@@ -8,6 +8,8 @@
 #include "Engine/World.h"
 #include "EngineTypes.h"
 
+#include "Asset/AssetManager.h"
+
 struct FWorldContext
 {
 	EWorldType WorldType;
@@ -71,6 +73,7 @@ public:
 	FWorldContext* GetWorldContextFromWorld(const UWorld* InWorld);
 	void DestroyWorldContext(UWorld* InWorld);
 
+	UAssetManager* AssetManager;
 protected:
 	FEngineLoop& GetEngineLoop() const { return *EngineLoop; }
 

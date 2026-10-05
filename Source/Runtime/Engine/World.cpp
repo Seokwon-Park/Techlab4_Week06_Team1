@@ -103,6 +103,9 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 
 void UWorld::Tick(float DeltaTime)
 {
+	// 에디터 월드면 더이상 틱을 돌리지 않는다.
+	if (WorldType == EWorldType::Editor) return;
+
 	while (!BeginPlayList.IsEmpty())
 	{
 		BeginPlayList.Peek()->BeginPlay();
@@ -680,6 +683,23 @@ UWorld* UWorld::CreateWorld(const EWorldType InWorldType, bool bInformEngineOfWo
 	NewWorld->Init();
 
 	return NewWorld;
+}
+
+UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld* InWorld)
+{
+//	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
+//	Parameters.DestName = InWorld->GetFName();
+//	Parameters.DestClass = InWorld->GetClass();
+//	Parameters.DuplicateMode = EDuplicateMode::PIE;
+//	Parameters.PortFlags = PPF_DuplicateForPIE;
+//
+//	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
+//
+//	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
+//
+//	return DuplicatedWorld;
+//}
+	return nullptr;
 }
 
 void UWorld::UpdateFireBallLight(FRenderer* Renderer)

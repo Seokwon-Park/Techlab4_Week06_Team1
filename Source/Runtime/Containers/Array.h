@@ -205,6 +205,15 @@ public:
 	uint32 Add(const T& data);
 	uint32 Add(T&& data);
 
+	void Push(const ElementType& Item)
+	{
+		Add(Item);
+	}
+	void Push(ElementType&& Item)
+	{
+		Add(std::move(Item));
+	}
+
 	template<typename... Args>
 	uint32 Emplace(Args&&... args);
 	uint32 Insert(const T& data, uint32 index);
@@ -243,6 +252,7 @@ public:
 	void RemoveAt(uint32 index, int32 count);
 	void RemoveAtSwap(uint32 index);
 	void RemoveLast();
+	void Pop() { RemoveLast(); }
 
 	size_t size() const { return mDatas.size(); }
 
@@ -256,6 +266,8 @@ public:
 	{
 		return const_cast<TArray*>(this)->Last(IndexFromTheEnd);
 	}
+
+	ElementType& Top() { return Last(); }
 
 	T& Front();
 	const T& Front() const;
