@@ -61,12 +61,17 @@ FName MakeUniqueObjectName(UObject* Outer, const UClass* Class, FName BaseName)
 	return FName(Base + "_" + std::to_string(Class->ClassUnique++));
 }
 
-UObject* StaticAllocateObject(const UClass* InClass, UObject* InOuter, FName InName, EObjectFlags InFlags)
+UObject* StaticDuplicateObject(UObject const* SourceObject, UObject* DestOuter, const FName DestName)
 {
-	void* Mem = malloc(InClass->ClassSize);
-	UObject* Obj = nullptr;
 	return nullptr;
 }
+
+//UObject* StaticAllocateObject(const UClass* InClass, UObject* InOuter, FName InName, EObjectFlags InFlags)
+//{
+//	void* Mem = malloc(InClass->ClassSize);
+//	UObject* Obj = nullptr;
+//	return nullptr;
+//}
 
 FStaticConstructObjectParameters::FStaticConstructObjectParameters(const UClass* InClass)
 	: Class(InClass)

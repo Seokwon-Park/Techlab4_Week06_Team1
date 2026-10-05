@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectHash.h"
 #include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveSlots.h"
 
 class UClass;
 // Property Reflection
@@ -20,6 +22,13 @@ public: \
 
 #define PROPERTY_TYPE(PropertyName, PropertyType) \
     InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), EPropertyType::##PropertyType);
+
+// Flags: EPropertyFlags 조합 (예: CPF_VisibleAnywhere, CPF_EditAnywhere | CPF_Transient)
+#define PROPERTY_FLAGS(PropertyName, Flags) \
+    InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), Flags);
+
+#define PROPERTY_TYPE_FLAGS(PropertyName, PropertyType, Flags) \
+    InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), EPropertyType::##PropertyType, Flags);
 
 #define REFLECT_END()\
 	};\
@@ -96,6 +105,8 @@ public:
 	inline EObjectFlags GetFlags() const { return Flags; }
 
 	virtual void Serialize(json& Handle, bool bIsLoading);
+	virtual void Serialize(FArchive& Ar) {};
+	virtual void Serialize(FStructuredArchive::FRecord Record) {};
 
 	void* operator new(uint64 Size)
 	{

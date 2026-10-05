@@ -95,6 +95,8 @@ public:
 
 	static UWorld* CreateWorld(const EWorldType InWorldType, bool bInformEngineOfWorld, FName WorldName = NAME_None); /*, UPackage* InWorldPackage = NULL, bool bAddToRoot = true, ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, const InitializationValues* InIVS = nullptr, bool bInSkipInitWorld = false);*/
 
+	static UWorld* GetDuplicatedWorldForPIE(UWorld* InWorld);
+
 	bool IsPlayInEditor() const { return WorldType == EWorldType::PIE; }
 
 private:
