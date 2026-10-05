@@ -72,6 +72,9 @@ void UObject::Serialize(json& Handle, bool bIsLoading)
 	{
 		for (FProperty Property : c->GetProperties())
 		{
+			if (Property.HasAnyFlags(CPF_Transient))
+				continue;
+
 			if (bIsLoading && !Handle.contains(Property.Name))
 				continue;
 

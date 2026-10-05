@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectHash.h"
 #include "Serialization/Archive.h"
+#include "Serialization/StructuredArchive.h"
+#include "Serialization/StructuredArchiveSlots.h"
 
 class UClass;
 struct FProperty;
@@ -21,6 +23,13 @@ public: \
 
 #define PROPERTY_TYPE(PropertyName, PropertyType) \
     InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), EPropertyType::##PropertyType);
+
+// Flags: EPropertyFlags 조합 (예: CPF_VisibleAnywhere, CPF_EditAnywhere | CPF_Transient)
+#define PROPERTY_FLAGS(PropertyName, Flags) \
+    InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), Flags);
+
+#define PROPERTY_TYPE_FLAGS(PropertyName, PropertyType, Flags) \
+    InClass->AddProperty<decltype(ThisClass::PropertyName)>(#PropertyName, offsetof(ThisClass, PropertyName), EPropertyType::##PropertyType, Flags);
 
 #define REFLECT_END()\
 	};\

@@ -99,6 +99,7 @@ public:
 
 	void UpdateFireBallLight(FRenderer* Renderer);
 
+	UWorld* GetDuplicatedWorldForPIE(UWorld* InWorld);
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 private:

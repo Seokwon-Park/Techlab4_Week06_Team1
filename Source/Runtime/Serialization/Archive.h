@@ -1,8 +1,19 @@
 #pragma once
 
+class UObject;
+
 class FArchive
 {
 public:
+	FArchive() = default;
+	FArchive(const FArchive&) = default;
+	FArchive& operator =(const FArchive& ArchiveToCopy) = default;
+	virtual ~FArchive() = default;
+
+	bool IsLoading() const { return bIsLoading; }
+	bool IsSaving() const { return !bIsLoading; }
+	void SetError() { bIsError = true; }
+	bool IsError() const { return bIsError; }
 
 	virtual void Serialize(void* V, int64 Length) { };
 	virtual void SerializeBool(bool& D);

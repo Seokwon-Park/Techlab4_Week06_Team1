@@ -66,4 +66,7 @@ struct FProperty
     size_t Offset;
     size_t Size;
     UClass* Class = nullptr;
+    uint32 Flags = CPF_Default;
+
+    bool HasAnyFlags(uint32 InFlags) const { return (Flags & InFlags) != 0; }
 };

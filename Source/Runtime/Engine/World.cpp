@@ -123,7 +123,7 @@ void UWorld::Tick(float DeltaTime)
 			BeginPlayList.Dequeue();
 		}
 
-	{
+	
 		SCOPE_CYCLE_COUNTER(STAT_ActorTick);
 		// 모든 Actor를 도는 대신 등록된 Tick 함수(메인 카메라 포함)만 실행한다.
 		TickTaskManager.RunAllTickGroups(DeltaTime);
@@ -760,21 +760,22 @@ void UWorld::UpdateFireBallLight(FRenderer* Renderer)
 	}
 
 	Renderer->SetFireBallLight(Constants);
+}
 
 UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld * InWorld)
 {
-	//	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
-	//	Parameters.DestName = InWorld->GetFName();
-	//	Parameters.DestClass = InWorld->GetClass();
-	//	Parameters.DuplicateMode = EDuplicateMode::PIE;
-	//	Parameters.PortFlags = PPF_DuplicateForPIE;
-	//
-	//	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
-	//
-	//	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
-	//
-	//	return DuplicatedWorld;
-	//}
+//	//	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
+//	//	Parameters.DestName = InWorld->GetFName();
+//	//	Parameters.DestClass = InWorld->GetClass();
+//	//	Parameters.DuplicateMode = EDuplicateMode::PIE;
+//	//	Parameters.PortFlags = PPF_DuplicateForPIE;
+//	//
+//	//	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
+//	//
+//	//	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
+//	//
+//	//	return DuplicatedWorld;
+//	//}
 	return nullptr;
 }
 
