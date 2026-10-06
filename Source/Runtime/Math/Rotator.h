@@ -16,6 +16,7 @@ struct FRotator
 	};
 	FRotator();
 	FRotator(float P, float Y, float R);
+	FRotator(FVector V);
 
 	static FRotator Identitiy;
 
@@ -33,11 +34,12 @@ struct FRotator
 
 	FRotator operator+(const FRotator& Other)
 	{
-		Pitch += Other.Pitch;
-		Yaw += Other.Yaw;
-		Roll += Other.Roll;
+		return FRotator(Pitch + Other.Pitch, Yaw + Other.Yaw, Roll + Other.Roll);
+	}
 
-		return *this;
+	FRotator operator*(const float Scalar)
+	{
+		return FRotator(Pitch * Scalar, Yaw * Scalar, Roll * Scalar);
 	}
 };
 

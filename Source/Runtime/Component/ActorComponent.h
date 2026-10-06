@@ -17,6 +17,7 @@ public:
 	UActorComponent() { PrimaryComponentTick.Target = this; }
 	virtual ~UActorComponent() override;
 
+	virtual void InitializeComponent() {};
 	virtual void BeginPlay() {};
 	virtual void TickComponent(float DeltaTime) {};
 
@@ -30,7 +31,11 @@ public:
 	// UE와 같이 기본값은 bCanEverTick = false. Tick이 필요한 컴포넌트만 생성자에서 켠다.
 	FActorComponentTickFunction PrimaryComponentTick;
 
+	virtual void SetActive(bool bNewActive);
+	bool IsActive() const { return bIsActive; }
+
 private:
 	AActor* Owner = nullptr;
 	bool bHiddenInDetails = false;
+	bool bIsActive = true;
 };

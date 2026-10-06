@@ -89,6 +89,31 @@ void UPrimitiveComponent::OnTransformDirty()
 		SceneProxy->GetScene()->MarkDirty(SceneProxy);
 }
 
+bool UPrimitiveComponent::MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep, FHitResult* Hit)
+{
+	if (!bSweep)
+	{
+		SetWorldLocationAndRotation(Transform.Location + Delta, NewRotation, bSweep);
+	}
+	else
+	{
+		// Simple hit check by ray		
+
+		const FVector TraceStart = Transform.Location;
+		const FVector TraceEnd = TraceStart + Delta;
+		const FRotator InitialRotation = NewRotation;
+
+		FHitResult BlockingHit;
+		BlockingHit.bBlockingHit = false;
+		BlockingHit.Time = 1.0f;
+
+		TArray<FHitResult> Hits;
+		FVector NewLocation = TraceStart;
+	}
+
+	return true;
+}
+
 bool UPrimitiveComponent::TraceMesh(const FRay& WorldRay, const FStaticMeshData& Mesh, const FMatrix& WorldMatrix, FHitResult& OutResult)
 {
 	FBox MeshBox = Mesh.AABB.GetWorldAABB(WorldMatrix);

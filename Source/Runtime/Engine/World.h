@@ -4,6 +4,7 @@
 #include "UObject/Class.h"
 #include "GameFramework/Actor.h"
 #include "Component/PrimitiveComponent.h"
+#include "Component/MovementComponent.h"
 #include "Component/TextRenderComponent.h"
 #include "Math/Transform.h"
 #include "Render/Renderer.h"

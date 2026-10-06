@@ -9,3 +9,8 @@ UActorComponent::~UActorComponent()
         Owner->RemoveOwnedComponent(this);
     }
 }
+
+void UActorComponent::SetActive(bool bNewActive)
+{
+    bIsActive = bNewActive;
+}

@@ -35,6 +35,11 @@ void AActor::BeginPlay()
 	//	World->AddPrimitive(Cast<UPrimitiveComponent>(RootComponent));
 	//}
 
+    for (UActorComponent* Component : Components)
+    {
+        Component->InitializeComponent();
+    }
+
 	for (UActorComponent* Component : Components)
 	{
 		Component->BeginPlay();
@@ -259,7 +264,7 @@ UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
     
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(NewComponent))
 	{
-		SceneComponent->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);
+		SceneComponent->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);        
 	}
 
     NewComponent->SetOwner(this);

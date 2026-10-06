@@ -12,6 +12,15 @@ USceneComponent::~USceneComponent()
 		Child->AttachParent = nullptr;
 	}
 	AttachChildren.Reset();
+
+	DetachFromParent();
+}
+
+void USceneComponent::SetRelativeLocationAndRotation(const FVector& NewLocation, const FRotator& NewRotation)
+{
+	Transform.Location = NewLocation;
+	Transform.Rotation = NewRotation;
+	MarkTransformDirty();
 }
 
 void USceneComponent::PostEditChangeProperty(const FProperty& Property)
@@ -41,7 +50,7 @@ void USceneComponent::SetupAttachment(USceneComponent* InParent, EAttachmentRule
 		{
 			AttachParent->AttachChildren.Add(this);
 		}
-		SetWorldTransform(WorldMatrix);
+		SetWorldTransform(WorldMatrix, false);
 	}
 	else
 	{
@@ -78,7 +87,7 @@ void USceneComponent::DetachFromParent(EAttachmentRule Rule)
 			}
 		}
 		AttachParent = nullptr;
-		SetWorldTransform(WorldMatrix);
+		SetWorldTransform(WorldMatrix, false);
 	}
 	else
 	{
@@ -146,7 +155,7 @@ FMatrix USceneComponent::GetWorldMatrix() const
 }
 
 
-void USceneComponent::SetWorldTransform(const FMatrix& InWorldMatrix)
+void USceneComponent::SetWorldTransform(const FMatrix& InWorldMatrix, bool bSweep)
 {
 	FMatrix LocalMatrix = InWorldMatrix;
 	if (AttachParent)
@@ -179,6 +188,58 @@ void USceneComponent::SetWorldTransform(const FMatrix& InWorldMatrix)
 	Transform.Rotation = MatrixToRotator(RotationMatrix);
 		
 	MarkTransformDirty();
+}
+
+void USceneComponent::SetWorldLocation(FVector NewLocation, bool bSweep)
+{
+	FVector NewRelLocation = NewLocation;
+
+	if (GetAttachParent() != nullptr)
+	{		
+		NewRelLocation = GetAttachParent()->GetWorldMatrix().Inverse().TransformPosition(NewRelLocation);
+	}
+
+	SetRelativeLocation(NewRelLocation);
+}
+
+void USceneComponent::SetWorldRotation(FRotator NewRotation, bool bSweep)
+{
+	FRotator NewRelRotation = NewRotation;
+
+	if (GetAttachParent() != nullptr)
+	{
+		FQuat NewRelQuat = GetAttachParent()->GetWorldRotation().Quaternion().Inverse() * NewRelRotation.Quaternion();
+		NewRelRotation = NewRelQuat.ToFRotator();
+	}
+
+	SetRelativeRotation(NewRelRotation);
+}
+
+void USceneComponent::SetWorldLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep)
+{
+	FVector NewRelLocation = NewLocation;
+	FRotator NewRelRotation = NewRotation;
+
+	if (GetAttachParent() != nullptr)
+	{
+		NewRelLocation = GetAttachParent()->GetWorldMatrix().Inverse().TransformPosition(NewRelLocation);
+
+		FQuat NewRelQuat = GetAttachParent()->GetWorldRotation().Quaternion().Inverse() * NewRelRotation.Quaternion();
+		NewRelRotation = NewRelQuat.ToFRotator();
+	}
+
+	SetRelativeLocationAndRotation(NewLocation, NewRelRotation);
+}
+
+void USceneComponent::SetWorldScale3D(FVector NewScale)
+{
+}
+
+bool USceneComponent::MoveComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep, FHitResult* Hit)
+{		
+	SetWorldLocationAndRotation(Transform.Location + Delta, NewRotation, bSweep);
+
+	return true;
 }
 
 void USceneComponent::MarkTransformDirty()

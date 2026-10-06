@@ -8,6 +8,8 @@
 #include "Component/TextRenderComponent.h"
 #include "Component/ParticleSubUVComponent.h"
 #include "Component/SpotLightComponent.h"
+#include "Component/RotatingMovementComponent.h"
+#include "Component/ProjectileMovementComponent.h"
 #include "Component/FireBallComponent.h"
 #include "Asset/AssetManager.h"
 #include "Render/Material.h"
@@ -446,7 +448,7 @@ namespace
 							Effective = Override;
 						}
 					}
-					
+
 					ImGui::TableNextRow();
 
 					// 4: UV Scroll Speed
@@ -554,7 +556,7 @@ namespace
 			bChanged = ImGui::DragInt(Label.c_str(), static_cast<int*>(ValuePtr), 1.0f);
 			break;
 		case EPropertyType::Bool:
-			bChanged =ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
+			bChanged = ImGui::Checkbox(Label.c_str(), static_cast<bool*>(ValuePtr));
 			break;
 		case EPropertyType::Vector:
 		{
@@ -610,7 +612,7 @@ namespace
 			FTransform* Value = static_cast<FTransform*>(ValuePtr);
 
 			ImGui::NewLine();
-			
+
 			FTransform Transform = *Value;
 			bool bChange = false;
 
@@ -654,8 +656,8 @@ namespace
 			ImGui::TextDisabled("(Unsupported)");
 			break;
 		}
-		
-		if(bChanged)
+
+		if (bChanged)
 		{
 			Object->PostEditChangeProperty(Property);
 		}
@@ -739,11 +741,21 @@ namespace
 				ComponentNameInputBuf[0] = '\0';
 				ImGui::CloseCurrentPopup();
 			}*/
-			if (ImGui::MenuItem("FireBall Component"))
+			if (ImGui::MenuItem("Rotating Movememnt Component"))
 			{
-				OutSelectedComponent = Actor->AddComponent(UFireBallComponent::StaticClass(), FString(ComponentNameInputBuf));
+				OutSelectedComponent = Actor->AddComponent(URotatingMovementComponent::StaticClass(), FString(ComponentNameInputBuf));
 				ComponentNameInputBuf[0] = '\0';
 				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("Projectile Movement Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UProjectileMovementComponent::StaticClass(), FString(ComponentNameInputBuf));
+				if (ImGui::MenuItem("FireBall Component"))
+				{
+					OutSelectedComponent = Actor->AddComponent(UFireBallComponent::StaticClass(), FString(ComponentNameInputBuf));
+					ComponentNameInputBuf[0] = '\0';
+					ImGui::CloseCurrentPopup();
+				}				
 			}
 			ImGui::EndPopup();
 		}
@@ -780,7 +792,7 @@ void FDetailsPanel::OnRender()
 	if (TargetActor)
 	{
 		DrawActorHeader(TargetActor, TargetComponent);
-		DrawCompoenetList(TargetActor, TargetComponent);
+		DrawCompoenetList(TargetActor, TargetComponent);				
 		ImGui::Separator();
 
 		if (TargetComponent)
@@ -803,9 +815,9 @@ void FDetailsPanel::OnRender()
 				}
 
 				PendingDeleteComponent = nullptr;
-			}
-		}
-	}
+			}			
+		}		
+	}	
 	ImGui::End();
 }
 
@@ -847,6 +859,41 @@ void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& O
 	if (Root && ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		DrawSceneComponentNode(Root, Root, OutSelectedComponent);
+	}
+
+	ImGui::Separator();
+
+	// Draw ActorComponent
+	for (UActorComponent* ActorComp : SelectedActor->GetComponents())
+	{
+		if (!ActorComp || Cast<USceneComponent>(ActorComp))
+		{
+			continue;
+		}
+
+		ImGui::PushID(ActorComp);
+		ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+		if (ActorComp == OutSelectedComponent)
+		{
+			Flags |= ImGuiTreeNodeFlags_Selected;
+		}
+		
+		FString Label = ActorComp->GetName();
+		const ImVec2 RowStart = ImGui::GetCursorScreenPos();
+		const float RowWidth = ImGui::GetContentRegionAvail().x;
+
+		ImGui::TreeNodeEx("ActorComponentNode", Flags, "%s", Label.c_str());
+
+		if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+		{
+			OutSelectedComponent = ActorComp;
+		}
+
+		const FString ClassName = std::format("({})", ActorComp->GetClass()->Name);
+		const float TextX = RowStart.x + RowWidth - ImGui::CalcTextSize(ClassName.c_str()).x;
+		ImGui::GetWindowDrawList()->AddText(ImVec2(TextX, RowStart.y), IM_COL32(200, 200, 200, 255), ClassName.c_str());		
+
+		ImGui::PopID();
 	}
 }
 

@@ -34,6 +34,11 @@ void FVector::Set(float x, float y, float z)
 }
 
 
+float FVector::SizeSquared() const
+{
+	return X * X + Y * Y + Z * Z;
+}
+
 float FVector::Size() const
 {
 	float sum = X * X + Y * Y + Z * Z;
@@ -57,6 +62,43 @@ FVector FVector::Normalized() const
 	}
 
 	return *this;
+}
+
+FVector FVector::GetSafeNormal(float Tolerance, const FVector& ResultIfZero) const
+{
+	const float SquareSum = X * X + Y * Y + Z * Z;
+
+	if (SquareSum == 1.0f)
+	{
+		return *this;
+	}
+	else if (SquareSum < Tolerance)
+	{
+		return ResultIfZero;
+	}
+
+	const float InvSize = 1.0f / sqrtf(SquareSum);
+
+	return FVector(X * InvSize, Y * InvSize, Z * InvSize);
+}
+
+FVector FVector::GetClampedToMaxSize(float MaxSize) const
+{
+	if (MaxSize < KINDA_SMALL_NUMBER)
+	{
+		return ZeroVector;
+	}
+
+	const float VSq = SizeSquared();
+	if (VSq > MaxSize * MaxSize)
+	{
+		const float Scale = MaxSize / sqrtf(VSq);
+		return FVector(X * Scale, Y * Scale, Z * Scale);
+	}
+	else
+	{
+		return *this;
+	}	
 }
 
 float& FVector::Component(int32 index)
@@ -217,6 +259,11 @@ FVector FVector::operator ^ (const FVector& V1) const
 	return this->Cross(V1);
 }
 
+float FVector::operator|(const FVector& V) const
+{
+	return this->Dot(V);
+}
+
 bool FVector::operator == (const FVector& V1) const
 {
 	return (X == V1.X) && (Y == V1.Y) && (Z == V1.Z);
@@ -264,4 +311,20 @@ float FVector::Distance(const FVector& V1, const FVector& V2)
 	float sum = dX * dX + dY * dY + dZ * dZ;
 
 	return sqrt(sum);
+}
+
+FVector FVector::ProjectOnToNormal(const FVector& Normal) const
+{
+	return (Normal * (*this | Normal));
+}
+
+FVector FVector::VectorPlaneProject(const FVector& V, const FVector& PlaneNormal)
+{
+	return V - V.ProjectOnToNormal(PlaneNormal);
+}
+
+bool FVector::Coincident(const FVector& Normal1, const FVector& Normal2, float ParallelCosineThreshold)
+{
+	const float NormalDot = Normal1 | Normal2;
+	return NormalDot >= ParallelCosineThreshold;
 }
