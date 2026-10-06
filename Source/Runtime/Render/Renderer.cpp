@@ -62,6 +62,7 @@ bool FRenderer::Init()
 	bUsePerObjectSlots = RenderCommand::SupportsConstantBufferOffsets();
 	PerObjectCB = RenderCommand::CreateConstantBuffer(sizeof(FPerObjectConstants));
 	ViewCB = RenderCommand::CreateConstantBuffer(sizeof(FMatrix));
+	FireBallLightCB = RenderCommand::CreateConstantBuffer(sizeof(FFireBallLightConstants));
 
 	GPUOcclusion.Init();   // 실패해도 오클루전만 못 쓸 뿐 렌더링은 된다
 
@@ -140,6 +141,8 @@ void FRenderer::RenderAll(FRenderQueue& InQueue, const FMatrix& ViewProjection)
 
 void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 {
+	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+
 	DrawStaticGroups();
 	DrawPackets(0, FirstTranslucentIndex, ViewProjection);
 }
@@ -147,6 +150,8 @@ void FRenderer::RenderOpaque(const FMatrix& ViewProjection)
 // RenderOpaque가 남긴 반투명 패킷을 먼 것부터 그린다.
 void FRenderer::RenderTranslucent(const FMatrix& ViewProjection)
 {
+	RenderCommand::BindConstantBuffer(3, FireBallLightCB.get(), EShaderBindFlagBits::Pixel);
+
 	DrawPackets(FirstTranslucentIndex, SortEntries.Num(), ViewProjection);
 	RenderPackets.Reset();
 	FirstTranslucentIndex = 0;
@@ -474,7 +479,7 @@ void FRenderer::UpdateMaterialParams(const FRenderPacket& RenderPacket)
 	{
 	case EMaterialParamLayout::StaticMesh:
 	{
-		break; // 라이팅 적용 시 제거
+		//break; // 라이팅 적용 시 제거
 
 		const float TotalTime = EngineTimer::GetTotalTime();
 
@@ -519,4 +524,10 @@ void FRenderer::UpdatePerObjectConstants(const FMatrix& World)
 	Constants.World = World;
 
 	RenderCommand::UpdateBufferData(PerObjectCB.get(), &Constants);
+}
+
+void FRenderer::SetFireBallLight(const FFireBallLightConstants& LightData)
+{
+	FireBallLightData = LightData;
+	RenderCommand::UpdateBufferData(FireBallLightCB.get(), &FireBallLightData, sizeof(FFireBallLightConstants));
 }

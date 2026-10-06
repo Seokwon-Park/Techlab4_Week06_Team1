@@ -30,7 +30,7 @@ public:
 	}
 
 	template <typename T>
-	void AddProperty(const FString& InName, uint64 InOffset, uint32 InFlags = CPF_Default)
+	void AddProperty(const FString& InName, uint64 InOffset)
 	{
 		UClass* ObjClass = nullptr;
 		if constexpr (std::is_pointer_v<T> &&
@@ -39,13 +39,13 @@ public:
 			ObjClass = std::remove_pointer_t<T>::StaticClass();
 		}
 
-		Properties.Add({ InName, GetPropertyType<T>(), InOffset, sizeof(T), ObjClass, InFlags });
+		Properties.Add({ InName, GetPropertyType<T>(), InOffset, sizeof(T), ObjClass });
 	}
 
 	template <typename T>
-	void AddProperty(const FString& InName, uint64 InOffset, EPropertyType InType, uint32 InFlags = CPF_Default)
+	void AddProperty(const FString& InName, uint64 InOffset, EPropertyType InType)
 	{
-		Properties.Add({ InName, InType, InOffset, sizeof(T), nullptr, InFlags });
+		Properties.Add({ InName, InType, InOffset, sizeof(T) });
 	}
 private:
 	mutable int32 ClassUnique = 0;

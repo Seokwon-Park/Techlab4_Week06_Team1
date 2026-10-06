@@ -10,6 +10,7 @@
 #include "Component/SpotLightComponent.h"
 #include "Component/RotatingMovementComponent.h"
 #include "Component/ProjectileMovementComponent.h"
+#include "Component/FireBallComponent.h"
 #include "Asset/AssetManager.h"
 #include "Render/Material.h"
 #include "Render/Texture2D.h"
@@ -447,7 +448,7 @@ namespace
 							Effective = Override;
 						}
 					}
-
+					
 					ImGui::TableNextRow();
 
 					// 4: UV Scroll Speed
@@ -611,7 +612,7 @@ namespace
 			FTransform* Value = static_cast<FTransform*>(ValuePtr);
 
 			ImGui::NewLine();
-
+			
 			FTransform Transform = *Value;
 			bool bChange = false;
 
@@ -680,18 +681,7 @@ namespace
 		for (auto It = ClassChain.rbegin(); It != ClassChain.rend(); ++It)
 		{
 			UClass* Class = *It;
-
-			// 노출할 프로퍼티가 하나도 없으면 헤더도 그리지 않는다
-			bool bHasVisibleProperty = false;
-			for (const FProperty& Property : Class->GetProperties())
-			{
-				if (Property.HasAnyFlags(CPF_Edit))
-				{
-					bHasVisibleProperty = true;
-					break;
-				}
-			}
-			if (!bHasVisibleProperty)
+			if (Class->GetProperties().IsEmpty())
 			{
 				continue;
 			}
@@ -701,15 +691,7 @@ namespace
 			{
 				for (const FProperty& Property : Class->GetProperties())
 				{
-					if (!Property.HasAnyFlags(CPF_Edit))
-					{
-						continue;
-					}
-
-					const bool bReadOnly = Property.HasAnyFlags(CPF_EditConst);
-					if (bReadOnly) ImGui::BeginDisabled();
 					DrawProperty(Object, Property, CustomFont);
-					if (bReadOnly) ImGui::EndDisabled();
 				}
 			}
 			ImGui::PopID();
@@ -768,6 +750,9 @@ namespace
 			if (ImGui::MenuItem("Projectile Movement Component"))
 			{
 				OutSelectedComponent = Actor->AddComponent(UProjectileMovementComponent::StaticClass(), FString(ComponentNameInputBuf));
+			if (ImGui::MenuItem("FireBall Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UFireBallComponent::StaticClass(), FString(ComponentNameInputBuf));
 				ComponentNameInputBuf[0] = '\0';
 				ImGui::CloseCurrentPopup();
 			}
@@ -805,22 +790,9 @@ void FDetailsPanel::OnRender()
 
 	if (TargetActor)
 	{
-		// 빌보드처럼 디테일에 숨겨진 컴포넌트가 선택되면 노출되는 부모로 올린다.
-		// (예: 라이트는 빌보드를 클릭해서 고르지만 수치는 SpotLight 쪽에 있다)
-		while (TargetComponent && TargetComponent->IsHiddenInDetails())
-		{
-			USceneComponent* HiddenComponent = Cast<USceneComponent>(TargetComponent);
-			TargetComponent = HiddenComponent ? HiddenComponent->GetAttachParent() : nullptr;
-		}
-
 		DrawActorHeader(TargetActor, TargetComponent);
 		DrawCompoenetList(TargetActor, TargetComponent);
 		ImGui::Separator();
-
-		// 액터 -> 컴포넌트 순으로, 클래스별 프로퍼티 표시
-		ImGui::PushID(TargetActor);
-		DrawProperties(TargetActor, CustomFont);
-		ImGui::PopID();
 
 		if (TargetComponent)
 		{
@@ -891,20 +863,10 @@ void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& O
 
 void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneComponent* Root, UActorComponent*& OutSelectedComponent)
 {
-	// 빌보드 같은 에디터 표시용 컴포넌트는 트리에 노출하지 않는다
-	if (!Component || Component->IsHiddenInDetails())
+	if (!Component)
 		return;
 
-	// 숨겨진 자식만 있는 노드가 펼침 화살표를 갖지 않도록 노출되는 자식만 센다
-	TArray<USceneComponent*> Children;
-	for (USceneComponent* Child : Component->GetAttachChildren())
-	{
-		if (Child && !Child->IsHiddenInDetails())
-		{
-			Children.Add(Child);
-		}
-	}
-
+	const TArray<USceneComponent*>& Children = Component->GetAttachChildren();
 	const bool bIsLeaf = Children.IsEmpty();
 	bIsEditingName = (EditingNameComponent == Component);
 	ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow;
@@ -978,7 +940,7 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 			bFocusNameEdit = false;
 		}
 
-		const bool bConfirmed = ImGui::InputText("Rename", ComponentNameEditBuffer,
+		const bool bConfirmed = ImGui::InputText("Rename", ComponentNameEditBuffer, 
 			sizeof(ComponentNameEditBuffer), ImGuiInputTextFlags_EnterReturnsTrue);
 		const bool bCancelled = ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape);
 		const bool bFinished = bConfirmed || ImGui::IsItemDeactivatedAfterEdit();
