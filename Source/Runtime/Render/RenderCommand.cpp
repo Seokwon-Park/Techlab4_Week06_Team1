@@ -195,6 +195,25 @@ void RenderCommand::BindShaderResource(uint32 Slot, UTexture2D* Texture2D, EShad
 	BindShaderResource(Slot, Texture2D->GetResource(), FlagBits);
 }
 
+void RenderCommand::UnbindShaderResource(uint32 Slot, EShaderBindFlagBits FlagBits)
+{
+	ID3D11ShaderResourceView* NullSRV = nullptr;
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Vertex))
+	{
+		RenderDevice->GetContext()->VSSetShaderResources(Slot, 1, &NullSRV);
+	}
+
+	if (HasFlag(FlagBits, EShaderBindFlagBits::Pixel))
+	{
+		RenderDevice->GetContext()->PSSetShaderResources(Slot, 1, &NullSRV);
+	}
+}
+
+void RenderCommand::CopyTexture(FTexture2D* Dst, FTexture2D* Src)
+{
+	RenderDevice->GetContext()->CopyResource(Dst->GetRawPtr(), Src->GetRawPtr());
+}
+
 void RenderCommand::BeginRenderPass(const FRenderingInfo& RenderingInfo)
 {
 	TArray<ID3D11RenderTargetView*> RTVs;

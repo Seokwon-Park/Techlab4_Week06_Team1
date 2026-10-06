@@ -106,6 +106,9 @@ bool UEditorEngine::Init()
 	FogRenderer = MakeUnique<FFogRenderer>();
 	FogRenderer->Init(Renderer);
 
+	FXAARenderer = MakeUnique<FFXAARenderer>();
+	FXAARenderer->Init();
+
 
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
 	DetailsPanel = EditorUI->AddEditorPanel<FDetailsPanel>();
@@ -570,6 +573,34 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 	RenderCommand::EndRenderPass(PassInfo);
 }
 
+void UEditorEngine::RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo)
+{
+	FTexture2D* SceneColor = ViewRenderingInfo.ColorRenderTargets[0].Texture;
+	FTexture2D* FxaaTarget = ViewportsPanel->GetFxaaTarget(ViewIndex);   // 뷰별 임시 텍스처
+	if (!SceneColor || !FxaaTarget)
+		return;
+
+	// 출력은 임시 텍스처, 깊이 없음, 어차피 전부 덮어쓰니 Clear 불필요
+	FRenderingInfo PassInfo;
+	PassInfo.ViewportSetting = ViewRenderingInfo.ViewportSetting;
+
+	FRenderingDesc ColorDesc{};
+	ColorDesc.Texture = FxaaTarget;
+	ColorDesc.LoadOp = ERenderTargetLoadOp::DontCare;
+	PassInfo.ColorRenderTargets.Add(ColorDesc);
+	PassInfo.DepthStencil.Texture = nullptr;
+
+	//장면 텍스처를 읽어서 임시 텍스처에 FXAA 결과를 그린다
+	RenderCommand::BeginRenderPass(PassInfo);
+	FXAARenderer->OnRender(SceneColor);
+	RenderCommand::EndRenderPass(PassInfo); 
+
+	// SceneColor가 SRV로 남아 있으면 Overlay 패스에서 RTV로 쓸 때 D3D가 강제로 해제하므로 먼저 비운다
+	RenderCommand::UnbindShaderResource(0, EShaderBindFlagBits::Pixel);
+
+	RenderCommand::CopyTexture(SceneColor, FxaaTarget);
+}
+
 // 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
 void UEditorEngine::UpdateGizmoAndPicking()
 {
@@ -619,8 +650,11 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 	// 2. 안개 Pass
 		RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
 
+	// 3. FXAA Pass
+	if (SettingsPanel->GetSettings().bEnableFXAA)
+		RenderFXAAPass(ViewIndex, ViewRenderingInfo);
 
-	// 3. 오버레이 Pass
+	// 4. 오버레이 Pass
 	RenderOverlayPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
 

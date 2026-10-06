@@ -73,6 +73,10 @@ public:
 	static void Unmap(FBuffer* InBuffer);
 	static void BindShaderResource(uint32 Slot, FTexture2D* Texture2D, EShaderBindFlagBits FlagBits);
 	static void BindShaderResource(uint32 Slot, UTexture2D* Texture2D, EShaderBindFlagBits FlagBits);
+	// 슬롯의 SRV를 비운다. 같은 텍스처를 다음 패스에서 RTV로 쓰기 전에 호출한다.
+	static void UnbindShaderResource(uint32 Slot, EShaderBindFlagBits FlagBits);
+	// 크기·포맷이 같은 두 텍스처의 내용을 통째로 복사한다.
+	static void CopyTexture(FTexture2D* Dst, FTexture2D* Src);
 
 	static void BeginRenderPass(const FRenderingInfo& RenderingInfo);
 	static void EndRenderPass(const FRenderingInfo& RenderingInfo);

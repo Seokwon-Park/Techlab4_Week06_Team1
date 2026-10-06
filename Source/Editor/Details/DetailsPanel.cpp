@@ -750,12 +750,14 @@ namespace
 			if (ImGui::MenuItem("Projectile Movement Component"))
 			{
 				OutSelectedComponent = Actor->AddComponent(UProjectileMovementComponent::StaticClass(), FString(ComponentNameInputBuf));
-				if (ImGui::MenuItem("FireBall Component"))
-				{
-					OutSelectedComponent = Actor->AddComponent(UFireBallComponent::StaticClass(), FString(ComponentNameInputBuf));
-					ComponentNameInputBuf[0] = '\0';
-					ImGui::CloseCurrentPopup();
-				}				
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
+			}
+			if (ImGui::MenuItem("FireBall Component"))
+			{
+				OutSelectedComponent = Actor->AddComponent(UFireBallComponent::StaticClass(), FString(ComponentNameInputBuf));
+				ComponentNameInputBuf[0] = '\0';
+				ImGui::CloseCurrentPopup();
 			}
 			ImGui::EndPopup();
 		}
