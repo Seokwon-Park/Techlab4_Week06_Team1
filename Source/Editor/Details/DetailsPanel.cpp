@@ -846,9 +846,8 @@ void FDetailsPanel::SelectComponent(UActorComponent* Component)
 
 	TargetComponent = Component;
 
-	USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
 	if (Callback)
-		Callback(SceneComponent);
+		Callback(TargetComponent);
 }
 
 void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& OutSelectedComponent)
@@ -895,6 +894,13 @@ void FDetailsPanel::DrawCompoenetList(AActor* SelectedActor, UActorComponent*& O
 		if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
 		{
 			OutSelectedComponent = ActorComp;
+		}
+
+		if (ImGui::BeginPopupContextItem("Component Context"))
+		{
+			if (ImGui::MenuItem("Delete", nullptr, false, ActorComp != Root))
+				PendingDeleteComponent = ActorComp;
+			ImGui::EndPopup();
 		}
 
 		const FString ClassName = std::format("({})", ActorComp->GetClass()->Name);
