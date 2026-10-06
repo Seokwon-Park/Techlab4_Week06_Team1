@@ -267,12 +267,19 @@ UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
 		SceneComponent->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);        
 	}
 
-    NewComponent->SetOwner(this);
+    NewComponent->SetOwner(this);    
     Components.Add(NewComponent);
+    NewComponent->InitializeComponent();
 
-    if (UParticleSubUVComponent* ParticleSubUV = Cast<UParticleSubUVComponent>(NewComponent))
+    //if (UParticleSubUVComponent* ParticleSubUV = Cast<UParticleSubUVComponent>(NewComponent))
+    //{
+    //    ParticleSubUV->BeginPlay();
+    //    RegisterAllActorTickFunctions(true);
+    //}
+
+    if (World)
     {
-        ParticleSubUV->BeginPlay();
+        NewComponent->BeginPlay();
         RegisterAllActorTickFunctions(true);
     }
 
