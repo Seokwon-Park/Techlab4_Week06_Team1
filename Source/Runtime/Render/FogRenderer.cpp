@@ -7,7 +7,7 @@
 
 bool FFogRenderer::Init(FRenderer* InRenderer)
 {
-	//TODO : ExponentialHeightFog작성 해야함
+
 	fogShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/ExponentialHeightFog.hlsl");
 	if (!fogShader)
 	{

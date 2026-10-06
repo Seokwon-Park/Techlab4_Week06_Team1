@@ -21,6 +21,8 @@ public:
 	// Core가 계산한 View Rect에 맞춰 해당 Slot의 활성 상태와 렌더 타깃을 갱신한다.
 	void SetView(int32 ViewIndex, const FRect& Rect, bool bActive);
 	const FRenderingInfo& GetRenderingInfo(int32 ViewIndex) const;
+	// FXAA 결과를 임시로 받는 View별 텍스처. ColorTarget과 크기·포맷이 같다.
+	FTexture2D* GetFxaaTarget(int32 ViewIndex) const;
 
 	FVector2 GetContentSize() const { return {ContentSize.x, ContentSize.y}; }
 	FVector2 GetLocalMousePosition() const;
@@ -46,6 +48,7 @@ private:
 		uint32 Height = 0;
 		TUniquePtr<FTexture2D> ColorTarget;
 		TUniquePtr<FTexture2D> DepthTarget;
+		TUniquePtr<FTexture2D> FxaaTarget;
 		FRenderingInfo RenderingInfo{};
 	};
 
