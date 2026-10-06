@@ -6,6 +6,20 @@ class UProjectileMovementComponent : public UMovementComponent
 	DECLARE_CLASS(UProjectileMovementComponent, UMovementComponent)
 
 		REFLECT_START(ClassName)
+			PROPERTY(InintialSpeed)
+			PROPERTY(MaxSpeed)
+			PROPERTY(ProjectileGravityScale)
+			PROPERTY(bRotationFollowsVelocity)
+			PROPERTY(bShouldBounce)
+			PROPERTY(Bounciness)
+			PROPERTY(Friction)
+			PROPERTY(bSimulationEnabled)
+			PROPERTY(bSweepCollision)
+			PROPERTY(bIsHomingProjectile)
+			PROPERTY(HomingAccelerationMagnitude)
+			PROPERTY(Velocity)
+			PROPERTY(Gravity)
+			PROPERTY(bConstrainToPlane)
 		REFLECT_END()
 
 public:
@@ -19,6 +33,11 @@ public:
 	bool bRotationFollowsVelocity;
 	bool bInitialVelocityInLocalSpace;
 
+	float PreviousHitTime;
+	FVector PreviousHitNormal;
+
+	bool bIsSliding = false;
+
 	// Bounce
 	bool bShouldBounce;
 	float Bounciness;
@@ -27,6 +46,8 @@ public:
 	// Simulation
 	bool bSimulationEnabled;
 	bool bSweepCollision;
+	float MaxSimulationTimeStep = 0.0166f; // Min : 0.0166, Max : 0.50 in Unreal 
+	int32 MaxSimulationIterations = 5; // Min : 1, Max : 25 in Unreal
 
 	// Homing
 	bool bIsHomingProjectile;
@@ -48,11 +69,23 @@ public:
 	virtual FVector ComputeMoveDelta(const FVector& InVelocity, float DeltaTime) const;
 	virtual FVector ComputAcceleration(const FVector& InVelocity, float DeltaTime) const;
 	virtual FVector ComputeHomingAcceleration(const FVector& InVelocity, float DeltaTime) const;
+	virtual FVector ComputeBounceResult(const FHitResult& Hit, float Timeslice, const FVector& MoveDelta);
+
+	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice = 0.0f, const FVector& MoveDelta = FVector::ZeroVector) override;
+	virtual bool HandleDeflection(FHitResult& Hit, const FVector& OldVelocity, float& SubTickTimeRemaining);	
+	virtual bool HandleSliding(FHitResult& Hit, float& SubTickTimeRemaining);
 
 	void AddForce(FVector Force);
 	FVector GetPendingForce() const;
 	void ClearPendingForce(bool bClearImmediateForce = false);
 
+	float GetSimulationTimeStep(float RemainingTime, int32 Iterations) const;
+	bool HasStoppedSimulation() { return UpdatedComponent == nullptr; }
+
 private:
 	FVector PendingForce;
+	FVector PendingForceThisUpdate;
+
+protected:
+	static const float MIN_TICK_TIME;
 };

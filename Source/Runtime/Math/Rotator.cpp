@@ -12,6 +12,11 @@ FRotator::FRotator(float P, float Y, float R)
 	Pitch = P; Yaw = Y; Roll = R;
 }
 
+FRotator::FRotator(FVector V)
+{
+	Pitch = V.X; Yaw = V.Y; Roll = V.Z;
+}
+
 
 FQuat FRotator::Quaternion() const
 {

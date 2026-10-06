@@ -21,8 +21,32 @@ struct FHitResult
 
 	float PenetrationDepth;
 
-	bool bBlockingHit;
-	bool bStartPentrating;
+	bool bBlockingHit = false;
+	bool bStartPentrating = false;
 
-	UPrimitiveComponent* HitComponent = nullptr;	
+	UPrimitiveComponent* HitComponent = nullptr;
+
+	FHitResult()
+	{
+		Init();
+	}
+
+	explicit FHitResult(float InTime)
+	{
+		Init();
+		Time = InTime;
+	}
+
+	// Initailize empty hit result
+	inline void Init()
+	{
+		Time = 1.0f;		
+	}
+
+	inline void Init(FVector Start, FVector End)
+	{
+		Time = 1.0f;
+		TraceStart = Start;
+		TraceEnd = End;
+	}
 };

@@ -2,7 +2,8 @@
 #include "GameFramework/Actor.h"
 #include "Component/FireBallComponent.h"
 #include "Component/StaticMeshComponent.h"
-
+#include "Component/RotatingMovementComponent.h"
+#include "Component/ProjectileMovementComponent.h"
 
 class AFireBallActor : public AActor
 {
@@ -15,4 +16,7 @@ public:
 private:
 	UFireBallComponent* FireballComponent;
 	UStaticMeshComponent* StaticMeshComponent;
+
+	URotatingMovementComponent* RotatingMovementComponent;
+	UProjectileMovementComponent* ProjectileMovementComponent;
 };

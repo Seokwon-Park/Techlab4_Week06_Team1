@@ -6,16 +6,15 @@ void UMovementComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 
-	if (UpdatedComponent == nullptr)
-	{		
-		if (AActor* MyActor = GetOwner())
+	if (AActor* MyActor = GetOwner())
+	{
+		if (USceneComponent* NewUpdatedCompoent = MyActor->GetRootComponent())
 		{
-			if (USceneComponent* NewUpdatedCompoent = MyActor->GetRootComponent())
-			{
-				SetUpdatedComponent(NewUpdatedCompoent);
-			}
+			SetUpdatedComponent(NewUpdatedCompoent);
 		}
 	}
+
+	PrimaryComponentTick.bCanEverTick = true;
 }
 
 void UMovementComponent::BeginPlay()
@@ -46,9 +45,22 @@ void UMovementComponent::UpdateComponentVelocity()
 	}
 }
 
+void UMovementComponent::HandleImpact(const FHitResult& Hit, float TimeSlice, const FVector& MoveDelta)
+{
+
+}
+
 FVector UMovementComponent::ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& HIt) const
 {
-	return FVector();
+	if (!bConstrainToPlane)
+	{
+		return FVector::VectorPlaneProject(Delta, Normal) * Time;		
+	}
+	else
+	{
+		const FVector ProjectedNormal = ConstrainDirectionToPlane(Normal);
+		return FVector::VectorPlaneProject(Delta, ProjectedNormal) * Time;
+	}
 }
 
 bool UMovementComponent::MoveUpdatedComponent(const FVector& Delta, const FRotator& NewRotation, bool bSweep, FHitResult* Hit)
@@ -59,4 +71,20 @@ bool UMovementComponent::MoveUpdatedComponent(const FVector& Delta, const FRotat
 	}
 
 	return false;
+}
+
+void UMovementComponent::StopMovementImmediately()
+{
+	Velocity = FVector::ZeroVector;
+	UpdateComponentVelocity();
+}
+
+FVector UMovementComponent::ConstrainDirectionToPlane(FVector Direction) const
+{
+	if (bConstrainToPlane)
+	{
+		Direction = FVector::VectorPlaneProject(Direction, PlaneConstraintNormal);
+	}
+
+	return Direction;
 }

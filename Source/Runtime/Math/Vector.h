@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include "../Core/Types.h"
+#include "MathUtility.h"
 
 struct FVector {
 
@@ -42,6 +43,9 @@ public:
 	FVector Cross(const FVector& V1) const;
 	FVector GetAbs() const;
 	FVector Normalized() const;
+	FVector GetSafeNormal(float Tolerance = SMALL_NUMBER, const FVector& ResultIfZero = ZeroVector) const;
+
+	FVector GetClampedToMaxSize(float MaxSize) const;
 
 	static const FVector ZeroVector;    // (0, 0, 0)
 	static const FVector OneVector;     // (1, 1, 1)
@@ -80,6 +84,7 @@ public:
 	FVector& operator /= (const float& f);
 
 	FVector operator ^ (const FVector& V1) const;
+	float operator | (const FVector& V) const;
 
 	bool operator == (const FVector& V1) const;
 	bool operator != (const FVector& V1) const;
@@ -104,6 +109,9 @@ public:
 
 	static FVector Zero();*/
 
+	FVector ProjectOnToNormal(const FVector& Normal) const;
+	static FVector VectorPlaneProject(const FVector& V, const FVector& PlaneNormal);
+	static bool Coincident(const FVector& Normal1, const FVector& Normal2, float ParallelCosineThreshold = THRESH_NORMALS_ARE_PARALLEL);
 };
 
 /* Global Operator */
