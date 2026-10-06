@@ -5,6 +5,7 @@
 #include "Component/SceneComponent.h"
 #include "Component/ParticleSubUVComponent.h"
 #include "Core/EngineLog.h"
+#include "UObject/Object.h"
 
 enum class EAttachmentRule;
 
@@ -74,37 +75,84 @@ void AActor::Serialize(FStructuredArchive::FRecord Record)
     if (Ar.IsSaving())
     {
         for (UActorComponent* Component : Components)
+        {
             if (Component)
+            {
                 SavedComponents.Add(Component);
+            }
+
+        }
     }
+
+	struct FPendingAttachment
+	{
+		USceneComponent* Child;
+		FString ParentName;
+	};
+	TArray<FPendingAttachment> PendingAttachments;
 
     int32 Num = SavedComponents.Num();
     FStructuredArchive::FArray ComponentArray = Record.EnterArray("Components", Num);
     for (int32 i = 0; i < Num; ++i)
     {
         FStructuredArchive::FRecord ComponentRecord = ComponentArray.EnterElement().EnterRecord();
+        FString ParentName;
 
         if (Ar.IsSaving())
         {
             UActorComponent* Component = SavedComponents[i];
             FString Name = Component->GetName();
             FString ClassName = Component->GetClass()->Name;
-            ComponentRecord << SA_VALUE("Name", Name) << SA_VALUE("Class", ClassName);
+            if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
+            {
+                ParentName = SceneComponent->GetAttachParent() ? SceneComponent->GetAttachParent()->GetName() : "";
+            }
+            ComponentRecord << SA_VALUE("Name", Name) << SA_VALUE("Class", ClassName) << SA_VALUE("Parent", ParentName);
             Component->Serialize(ComponentRecord);
             continue;
         }
 
         FString Name, ClassName;
-        ComponentRecord << SA_VALUE("Name", Name) << SA_VALUE("Class", ClassName);
+        ComponentRecord << SA_VALUE("Name", Name) << SA_VALUE("Class", ClassName) << SA_VALUE("Parent", ParentName);
 
         UActorComponent* Component = FindComponentByName(FName(Name));
+        if (!Component)
+        {
+            UClass* ComponentClass = FindClass(ClassName);
+
+            if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
+            {
+                HTR_LOG(Warning, "Load: unknown component class '{}'", ClassName);
+                continue;
+            }
+
+            Component = AddComponent(ComponentClass, FName(Name));
+        }
+
         if (!Component || Component->GetClass()->Name != ClassName)
         {
-            HTR_LOG(Warning, "Load: {} has no component {} ({}), skipped", GetClass()->Name, Name, ClassName);
+            HTR_LOG(Warning, "Load: component {} ({}) failed", Name, ClassName);
             continue;
         }
+
         Component->Serialize(ComponentRecord);
+		if(USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
+		{
+			if (!ParentName.empty())
+			{
+				PendingAttachments.Add({ SceneComponent, ParentName });
+			}
+		}
     }
+
+	for (const FPendingAttachment& Attachment : PendingAttachments)
+	{
+		USceneComponent* ParentComponent = Cast<USceneComponent>(FindComponentByName(FName(Attachment.ParentName)));
+		if (ParentComponent)
+		{
+			Attachment.Child->SetupAttachment(ParentComponent);
+		}
+	}
 }
 
 
@@ -190,6 +238,12 @@ UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
     if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
     {
         return nullptr;
+    }
+
+
+    if (FName(Name) == FName("None"))
+    {
+        Name = MakeUniqueObjectName(this, ComponentClass);
     }
 
     UActorComponent* NewComponent = NewObject<UActorComponent>(this, ComponentClass, Name);
