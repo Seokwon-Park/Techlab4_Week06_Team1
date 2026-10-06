@@ -11,12 +11,12 @@ AFireBallActor::AFireBallActor()
 
 	RotatingMovementComponent = CreateDefaultSubobject<URotatingMovementComponent>("URotatingMovementComponent");	
 	RotatingMovementComponent->RotationRate = FRotator(0.0f, 100.0f, 100.0f);
-	RotatingMovementComponent->PivotTranslation = FVector(3.0f, 0.0f, 0.0f);
+	RotatingMovementComponent->PivotTranslation = FVector(0.0f, 0.0f, 0.0f);
 
 	ProjectileMovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>("UProjectileMovementComponent");
 	ProjectileMovementComponent->InintialSpeed = 1.0f;
 	ProjectileMovementComponent->MaxSpeed = 5.0f;
-	ProjectileMovementComponent->Velocity = FVector(10.0f, 0.0f, 0.0f);
+	ProjectileMovementComponent->Velocity = FVector(5.0f, 0.0f, 0.0f);
 	ProjectileMovementComponent->bShouldBounce = true;
 	ProjectileMovementComponent->bInitialVelocityInLocalSpace = true;
 	ProjectileMovementComponent->ProjectileGravityScale = 0.0f;
