@@ -23,7 +23,7 @@ UObject* UClass::GetDefaultObject()
 {
 	if (!DefaultObject)
 	{
-		DefaultObject = Constructor();
+		DefaultObject = Constructor(UObject::operator new(ClassSize));
 	}
 	return DefaultObject;
 }

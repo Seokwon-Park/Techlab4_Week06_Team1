@@ -40,10 +40,10 @@ UWorld::~UWorld()
 
 }
 
-bool  UWorld::Init()
+bool UWorld::Init()
 {
 	// Spawn Actor로 카메라 생성하고 세팅하기
-	PersistentLevel = NewObject<ULevel>();
+	PersistentLevel = NewObject<ULevel>(this);
 
 	if (!PersistentLevel)
 	{
@@ -92,8 +92,8 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 	{
 		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
 			Scene.AddPrimitive(Primitive);
-		else if(UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
-			Scene.AddFogInfo(Fog->GetUUID(),Fog->GetFogInfo());
+		else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
+			Scene.AddFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
 	}
 
 	// 4. Level->Actors에 등록
@@ -113,9 +113,7 @@ void UWorld::Tick(float DeltaTime)
 	}
 
 	// 에디터 월드면 더이상 틱을 돌리지 않는다.
-
-
-	if (WorldType == EWorldType::Editor)
+	if (WorldType != EWorldType::Editor)
 	{
 		while (!BeginPlayList.IsEmpty())
 		{
@@ -123,12 +121,6 @@ void UWorld::Tick(float DeltaTime)
 			BeginPlayList.Dequeue();
 		}
 
-	
-		SCOPE_CYCLE_COUNTER(STAT_ActorTick);
-		// 모든 Actor를 도는 대신 등록된 Tick 함수(메인 카메라 포함)만 실행한다.
-		TickTaskManager.RunAllTickGroups(DeltaTime);
-
-		for (ULevel* Level : Levels)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ActorTick);
 			// 모든 Actor를 도는 대신 등록된 Tick 함수(메인 카메라 포함)만 실행한다.
@@ -762,28 +754,69 @@ void UWorld::UpdateFireBallLight(FRenderer* Renderer)
 	Renderer->SetFireBallLight(Constants);
 }
 
-UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld * InWorld)
+UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld* InWorld)
 {
-//	//	FObjectDuplicationParameters Parameters(InWorld, InPIEackage);
-//	//	Parameters.DestName = InWorld->GetFName();
-//	//	Parameters.DestClass = InWorld->GetClass();
-//	//	Parameters.DuplicateMode = EDuplicateMode::PIE;
-//	//	Parameters.PortFlags = PPF_DuplicateForPIE;
-//	//
-//	//	UWorld* DuplicatedWorld = CastChecked<UWorld>(StaticDuplicateObjectEx(Parameters));
-//	//
-//	//	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
-//	//
-//	//	return DuplicatedWorld;
-//	//}
-	return nullptr;
+	if (!InWorld)
+	{
+		return nullptr;
+	}
+
+	UWorld* PIEWorld = CreateWorld(EWorldType::PIE, false);
+
+	FObjectDuplicationParameters Params(InWorld, nullptr);
+	Params.DuplicationSeed.Add(InWorld, PIEWorld);
+	Params.DuplicationSeed.Add(InWorld->GetPersistentLevel(), PIEWorld->GetPersistentLevel());
+	Params.PortFlags = EPropertyPortFlags::PPF_DuplicateForPIE;
+
+	StaticDuplicateObjectEx(Params);
+	return PIEWorld;
+}
+
+void UWorld::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	TArray<UObject*> ObjectsToFixReferences;
+	TMap<UObject*, UObject*> ReplacementMap;
+
+	if (!bDuplicateForPIE)
+	{
+		assert(PersistentLevel);
+
+		// Update the persistent level's owning world. This is needed for some initialization
+		if (!PersistentLevel->OwningWorld)
+		{
+			PersistentLevel->OwningWorld = this;
+		}
+	}
+
+	for (AActor* Actor : PersistentLevel->GetActors())
+	{
+		if (!Actor)
+			continue;
+
+		for (UActorComponent* Component : Actor->GetComponents())
+		{
+			if (USceneComponent* SceneComp = Cast<USceneComponent>(Component))
+				SceneComp->MarkTransformDirty();        // 부착/상대 Transform이 바뀌었으니 다시 계산
+
+			if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
+				Scene.AddPrimitive(Primitive);
+			else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
+				Scene.AddFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
+		}
+
+		BeginPlayList.Enqueue(Actor);   // Tick 등록은 BeginPlay에서 함
+	}
+
+	Scene.BuildBVH();
 }
 
 void UWorld::Serialize(FStructuredArchive::FRecord Record)
 {
 	Super::Serialize(Record);   // "Properties"
 
-	// 레벨은 월드가 소유하므로 그 자리에 쓴다 (11번과 같은 in place 방식)
+	FArchive& Ar = Record.GetUnderlyingArchive();
 	PersistentLevel->Serialize(Record.EnterRecord("PersistentLevel"));
 
 	// (선택) 메인 카메라는 레벨에 속하지 않아 따로 쓴다. PIE 시작 시점이나 에디터 시점을 복원할 때 쓸 수 있다.

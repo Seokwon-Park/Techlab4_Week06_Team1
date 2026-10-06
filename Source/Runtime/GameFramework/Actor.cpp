@@ -76,6 +76,31 @@ void AActor::Serialize(FStructuredArchive::FRecord Record)
 
     FArchive& Ar = Record.GetUnderlyingArchive();
 
+    if (Ar.HasAnyPortFlags(EPropertyPortFlags::PPF_Duplicate))
+    {
+        int32 Num = Components.Num();
+        FStructuredArchive::FArray ActorArray = Record.EnterArray("Components", Num);
+        if (Ar.IsLoading())
+            Components.SetNum(Num);
+        for (int32 i = 0; i < Num; ++i)
+        {
+            UObject* Obj = Components[i];
+            ActorArray.EnterElement() << Obj;
+            Components[i] = static_cast<UActorComponent*>(Obj);
+        }
+
+        UObject* WorldObj = World;
+        UObject* LevelObj = Level;
+        UObject* RootObj = RootComponent;
+        Record << SA_VALUE("OwningWorld", WorldObj);
+        Record << SA_VALUE("OwningLevel", LevelObj);
+        Record << SA_VALUE("RootComponent", RootObj);
+        World = static_cast<UWorld*>(WorldObj);
+        Level = static_cast<ULevel*>(LevelObj);
+        RootComponent = static_cast<USceneComponent*>(RootObj);
+        return;
+    }
+
     TArray<UActorComponent*> SavedComponents;
     if (Ar.IsSaving())
     {
@@ -309,6 +334,15 @@ void AActor::DestroyComponent(UActorComponent* Component)
     RemoveOwnedComponent(Component);
     delete Component;
     return;
+}
+
+void AActor::OnDefaultSubobjectCreated(UObject* Subobject)
+{
+    if (UActorComponent* Component = Cast<UActorComponent>(Subobject))
+    {
+        Component->SetOwner(this);
+        Components.Add(Component);
+    }
 }
 
 UActorComponent* AActor::FindComponentByName(FName Name) const

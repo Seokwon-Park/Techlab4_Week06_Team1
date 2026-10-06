@@ -1,6 +1,11 @@
 #include "EnginePCH.h"
 #include "BinaryArchiveFormatter.h"
 
+FBinaryArchiveFormatter::FBinaryArchiveFormatter(FArchive& InInner)
+	:Inner(InInner)
+{
+}
+
 bool FBinaryArchiveFormatter::HasDocumentTree() const
 {
 	return false;
@@ -93,9 +98,9 @@ void FBinaryArchiveFormatter::EnterAttributedValue()
 {
 }
 
-//void FBinaryArchiveFormatter::EnterAttribute(FArchiveFieldName AttributeName)
-//{
-//}
+void FBinaryArchiveFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+}
 
 void FBinaryArchiveFormatter::EnterAttributedValueValue()
 {
@@ -114,16 +119,16 @@ void FBinaryArchiveFormatter::LeaveAttributedValue()
 {
 }
 
-//bool FBinaryArchiveFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting)
-//{
-//	bool bValue = bEnterWhenWriting;
-//	Inner << bValue;
-//	if (bValue)
-//	{
-//		EnterAttribute(AttributeName);
-//	}
-//	return bValue;
-//}
+bool FBinaryArchiveFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting)
+{
+	bool bValue = bEnterWhenWriting;
+	Inner << bValue;
+	if (bValue)
+	{
+		EnterAttribute(AttributeName);
+	}
+	return bValue;
+}
 
 void FBinaryArchiveFormatter::Serialize(uint8& Value)
 {

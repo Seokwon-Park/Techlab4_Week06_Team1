@@ -6,6 +6,7 @@
 
 #include "Serialization/TypeSerializer.h"
 #include "Serialization/MathSerialization.h"
+#include "Serialization/Formatter/BinaryArchiveFormatter.h"
 #include "Asset/AssetManager.h" //??? 의존성 제거 필요
 
 
@@ -51,9 +52,10 @@ UClass* UObject::StaticClass()
 	{
 		c.Name = "Object";
 		c.Super = nullptr;
-		c.Constructor = []() -> UObject*
+		c.ClassSize = sizeof(UObject);
+		c.Constructor = [](void* Memory) -> UObject*
 			{
-				return new UObject();
+				return ::new (Memory) UObject();
 			};
 		bIsInit = true;
 	}
@@ -188,6 +190,14 @@ void UObject::Serialize(json& Handle, bool bIsLoading)
 			}
 		}
 	}
+}
+
+void UObject::Serialize(FArchive& Ar)
+{
+	FBinaryArchiveFormatter Formatter(Ar);
+	FStructuredArchive StructuredAr(Formatter);
+	Serialize(StructuredAr.Open().EnterRecord());
+	StructuredAr.Close();
 }
 
 void UObject::Serialize(FStructuredArchive::FRecord Record)

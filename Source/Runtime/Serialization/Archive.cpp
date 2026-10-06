@@ -30,3 +30,28 @@ FArchive& operator<<(FArchive& Ar, FString& Value)
 		Ar.Serialize(Value.data(), Num);
 	return Ar;
 }
+
+void FArchiveState::SetError()
+{
+	ArIsError = true;
+}
+
+void FArchiveState::SetIsLoading(bool bInIsLoading)
+{
+	ArIsLoading = bInIsLoading;
+}
+
+void FArchiveState::SetIsSaving(bool bInIsSaving)
+{
+	ArIsSaving = bInIsSaving;
+}
+
+void FArchiveState::SetIsTextFormat(bool bInIsTextFormat)
+{
+	ArIsTextFormat = bInIsTextFormat;
+}
+
+void FArchiveState::SetIsPersistent(bool bInIsPersistent)
+{
+	ArIsPersistent = bInIsPersistent;
+}

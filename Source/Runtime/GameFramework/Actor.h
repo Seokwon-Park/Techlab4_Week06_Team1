@@ -47,15 +47,6 @@ public:
 	//xx삭제 예정
 	friend class UWorld;
 
-	template <typename T>
-	T* CreateDefaultSubobject(FName Name)
-	{
-		T* Component = NewObject<T>(this, Name);
-		Component->SetOwner(this);
-		Components.Add(Component);
-		return Component;
-	}
-
 	UActorComponent* AddComponent(UClass* ComponentClass, FName Name);
 	void DestroyComponent(UActorComponent* Component);
 
@@ -68,6 +59,7 @@ public:
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 protected:
+	virtual void OnDefaultSubobjectCreated(UObject* Subobject) override;
 	UActorComponent* FindComponentByName(FName Name) const;
 
 	//TSet<TObjectPtr<UActorComponent>> OwnedComponents;

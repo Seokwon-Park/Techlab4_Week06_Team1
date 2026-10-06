@@ -44,7 +44,7 @@ public:
 	template <typename T>
 	static T* GetAssetByPath(const FString& Path)
 	{
-		URenderAsset** Found = Get().AssetMap.FindOrNull(Path);
+		URenderAsset** Found = Get().AssetMap.Find(Path);
 
 		if (Found == nullptr || *Found == nullptr || !(*Found)->IsA<T>())
 		{

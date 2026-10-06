@@ -97,13 +97,13 @@ public:
 	// ── AttributedValue: 본 값에 이름 있는 부가 정보(Attribute)를 붙인 값 ──
 	// 현재 위치를 AttributedValue로 시작/종료한다.
 	virtual void EnterAttributedValue() = 0;
-	//virtual void EnterAttribute(FArchiveFieldName AttributeName) = 0;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) = 0;
 	// 본 값 쪽으로 들어간다.
 	virtual void EnterAttributedValueValue() = 0;
 	// EnterAttribute로 들어간 Attribute 하나에서 나온다.
 	virtual void LeaveAttribute() = 0;
 	virtual void LeaveAttributedValue() = 0;
-	//virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting) = 0;
+	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting) = 0;
 	// 현재 값이 AttributedValue 형태로 저장되어 있으면 본 값으로 들어가고 true. 일반 값이면 false.
 	virtual bool TryEnterAttributedValueValue() = 0;
 

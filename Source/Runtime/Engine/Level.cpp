@@ -33,6 +33,25 @@ void ULevel::Serialize(FStructuredArchive::FRecord Record)
 
 	FArchive& Ar = Record.GetUnderlyingArchive();
 
+	if (Ar.HasAnyPortFlags(EPropertyPortFlags::PPF_Duplicate))
+	{
+		int32 Num = Actors.Num();
+		FStructuredArchive::FArray ActorArray = Record.EnterArray("Actors", Num);
+		if (Ar.IsLoading())
+			Actors.SetNum(Num);
+		for (int32 i = 0; i < Num; ++i)
+		{
+			UObject* Obj = Actors[i];
+			ActorArray.EnterElement() << Obj;
+			Actors[i] = static_cast<AActor*>(Obj);
+		}
+
+		UObject* WorldObj = OwningWorld;
+		Record << SA_VALUE("OwningWorld", WorldObj);
+		OwningWorld = static_cast<UWorld*>(WorldObj);
+		return;
+	}
+
 	if (Ar.IsSaving())
 	{
 		// 개수를 먼저 알아야 EnterArray를 할 수 있으므로 저장할 액터부터 고른다

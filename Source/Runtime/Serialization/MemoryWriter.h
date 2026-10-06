@@ -19,7 +19,7 @@ public:
 		, Bytes(InBytes)
 		, ArchiveName(InArchiveName)
 	{
-		bIsLoading = false;
+		SetIsSaving(true);
 		if (bSetOffset)
 			Offset = InBytes.Num();
 	}
