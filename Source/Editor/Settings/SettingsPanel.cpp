@@ -43,6 +43,7 @@ void FSettingsPanel::OnRender()
 	ImGui::Checkbox("Draw Bounding Box", &Settings.bDrawBoundingBox);
 	ImGui::Checkbox("Show Object UUID", &Settings.bShowUUID);
 	ImGui::Checkbox("FXAA", &Settings.bEnableFXAA);
+	ImGui::Checkbox("Depth View", &Settings.bDepthView);
 
 	//////////////////////////////////////////////////////////
 

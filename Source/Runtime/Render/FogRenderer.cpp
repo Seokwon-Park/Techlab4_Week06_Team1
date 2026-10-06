@@ -8,8 +8,8 @@
 bool FFogRenderer::Init(FRenderer* InRenderer)
 {
 
-	fogShader = FRenderResourceManager::GetShaderProgram("Resources/Shader/ExponentialHeightFog.hlsl");
-	if (!fogShader)
+	Shader = FRenderResourceManager::GetShaderProgram("Resources/Shader/ExponentialHeightFog.hlsl");
+	if (!Shader)
 	{
 		HTR_LOG(Error, "[ExponentialHeightFog] shader not found");
 		return false;
@@ -18,7 +18,7 @@ bool FFogRenderer::Init(FRenderer* InRenderer)
 
 	ConstantBuffer = RenderCommand::CreateConstantBuffer(sizeof(FFogConstants));
 
-	PipelineState.Shader = fogShader;
+	PipelineState.Shader = Shader;
 	PipelineState.Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	// 셰이더가 알파에 안개 양을 담아 보내므로, 장면 위에 섞어서 덮는다
 	PipelineState.BlendState = EBlendState::AlphaBlend;

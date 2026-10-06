@@ -13,6 +13,7 @@
 #include "Render/LineBatcher.h"
 #include "Render/FogRenderer.h"
 #include "Render/FXAARenderer.h"
+#include "Render/DepthViewRenderer.h"
 
 
 #include "Editor/EditorUI/EditorUI.h"
@@ -73,6 +74,9 @@ private:
 	void RenderOverlayPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue);
 	//FXAA Pass
 	void RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo);
+	//Depth Pass
+	void RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward);
+
 
 
 	FWorldContext& GetEditorWorldContext();
@@ -97,6 +101,7 @@ private:
 	TUniquePtr<FOutlineRenderer> OutlineRenderer;
 	TUniquePtr<FSkyboxRenderer> SkyboxRenderer;
 	TUniquePtr<FFXAARenderer> FXAARenderer;
+	TUniquePtr<FDepthViewRenderer> DepthViewRenderer;
 
 
 	UFont* SystemFont;

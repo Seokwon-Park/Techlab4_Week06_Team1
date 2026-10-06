@@ -14,7 +14,7 @@ struct FFogConstants
 };
 
 
-class FFogRenderer final
+class FFogRenderer
 {
 public:
 	FFogRenderer() = default;
@@ -29,7 +29,7 @@ public:
 private:
 
 	
-	FShaderProgram* fogShader = nullptr;
+	FShaderProgram* Shader = nullptr;
 	FPipelineState PipelineState;
 	TUniquePtr<FConstantBuffer> ConstantBuffer;
 

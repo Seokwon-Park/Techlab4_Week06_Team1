@@ -109,6 +109,9 @@ bool UEditorEngine::Init()
 	FXAARenderer = MakeUnique<FFXAARenderer>();
 	FXAARenderer->Init();
 
+	DepthViewRenderer = MakeUnique<FDepthViewRenderer>();
+	DepthViewRenderer->Init();
+
 
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
 	DetailsPanel = EditorUI->AddEditorPanel<FDetailsPanel>();
@@ -453,7 +456,7 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 
 	RenderCommand::BeginRenderPass(PassInfo);
 
-	if (SettingsPanel->GetSettings().bDrawBatchLine)
+	if (SettingsPanel->GetSettings().bDrawBatchLine && !SettingsPanel->GetSettings().bDepthView)
 	{
 		// 라인 배처는 매 프레임 한 번만 비우고 한 번만 그린다.
 		// 바운딩박스는 그 안에 쌓이는 여러 항목 중 하나일 뿐이다.
@@ -601,6 +604,19 @@ void UEditorEngine::RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& 
 	RenderCommand::CopyTexture(SceneColor, FxaaTarget);
 }
 
+void UEditorEngine::RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward)
+{
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+
+	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
+		Color.LoadOp = ERenderTargetLoadOp::DontCare;  
+	PassInfo.DepthStencil.Texture = nullptr;
+
+	RenderCommand::BeginRenderPass(PassInfo);
+	DepthViewRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, ViewCameraForward);
+	RenderCommand::EndRenderPass(PassInfo);
+}
+
 // 입력 View의 Ray와 피킹으로 Gizmo·공유 선택을 갱신한다.
 void UEditorEngine::UpdateGizmoAndPicking()
 {
@@ -645,14 +661,25 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 	// 1. 불투명 Pass
 	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
-	//직교인 경우 안개 Pass를 그리지 않는다.
-	if(!MultipleViewportsAdapter.IsOrthographic(ViewIndex))
-	// 2. 안개 Pass
-		RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+	if(SettingsPanel->GetSettings().bDepthView)
+	{
+		RenderDepthPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
 
-	// 3. FXAA Pass
-	if (SettingsPanel->GetSettings().bEnableFXAA)
-		RenderFXAAPass(ViewIndex, ViewRenderingInfo);
+
+	}
+	else
+	{
+		//직교인 경우 안개 Pass를 그리지 않는다.
+		if (!MultipleViewportsAdapter.IsOrthographic(ViewIndex))
+			// 2. 안개 Pass
+			RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+
+		// 3. FXAA Pass
+		if (SettingsPanel->GetSettings().bEnableFXAA)
+			RenderFXAAPass(ViewIndex, ViewRenderingInfo);
+	}
+
+
 
 	// 4. 오버레이 Pass
 	RenderOverlayPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
