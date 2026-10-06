@@ -41,6 +41,7 @@ public:
 	FVector GetActorScale3D() const;
 	FQuat GetActorQuat() const;           //xx 타입명변경
 	FTransform GetActorTransform() const;
+	bool TryGetActorBounds(FBox& OutBounds) const;
 
 	bool Destroy();
 	
@@ -67,8 +68,8 @@ public:
 
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
-protected:
 	UActorComponent* FindComponentByName(FName Name) const;
+protected:
 
 	//TSet<TObjectPtr<UActorComponent>> OwnedComponents;
 	TArray<UActorComponent*> Components;

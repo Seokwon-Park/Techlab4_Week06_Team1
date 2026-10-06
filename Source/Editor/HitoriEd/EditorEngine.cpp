@@ -151,7 +151,7 @@ bool UEditorEngine::Init()
 	OutlinerPanel->SetSelectionCallback(
 		[this](USceneComponent* Root)
 		{
-			Gizmo->SetTarget(Root);
+			Gizmo->SetTarget(Root, true);
 			DetailsPanel->SetTarget(Root ? Root->GetOwner() : nullptr);
 
 			UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Root);
@@ -165,7 +165,14 @@ bool UEditorEngine::Init()
 	DetailsPanel->SetSelectionCallback(
 		[this](USceneComponent* SceneComponent)
 		{
-			Gizmo->SetTarget(SceneComponent);
+			if (SceneComponent == SceneComponent->GetOwner()->GetRootComponent())
+			{
+				Gizmo->SetTarget(SceneComponent, true);
+			}
+			else
+			{
+				Gizmo->SetTarget(SceneComponent);
+			}
 		}
 	);
 
@@ -540,19 +547,11 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 			if (!Actor)
 				continue;
 
-			UPrimitiveComponent* Primitive =
-				Cast<UPrimitiveComponent>(Actor->GetRootComponent());
-
-			if (!Primitive)
-				continue;
-
-			FBox Box =
-				Primitive->CalcBounds();
-
-			FVector UUIDLocation;
-			UUIDLocation.X = (Box.Min.X + Box.Max.X) * 0.5f;
-			UUIDLocation.Y = (Box.Min.Y + Box.Max.Y) * 0.5f;
-			UUIDLocation.Z = Box.Max.Z + 0.5f;
+			FBox ActorBounds;
+			Actor->TryGetActorBounds(ActorBounds);
+			UUIDLocation.X = (ActorBounds.Min.X + ActorBounds.Max.X) * 0.5f;
+			UUIDLocation.Y = (ActorBounds.Min.Y + ActorBounds.Max.Y) * 0.5f;
+			UUIDLocation.Z = ActorBounds.Max.Z + 0.5f;
 
 			FString Text =
 				"UUID : " + std::to_string(Actor->GetUUID());
@@ -678,7 +677,7 @@ void UEditorEngine::DeleteComponent(UActorComponent* Component)
 // 씬 변경으로 무효화된 에디터의 선택 참조를 모두 해제한다.
 void UEditorEngine::ResetSceneSelection()
 {
-	Gizmo->SetTarget(nullptr);
+	Gizmo->SetTarget(nullptr, false);
 	Outline->SetTarget(nullptr);
 	DetailsPanel->SetTarget(nullptr);
 	OutlinerPanel->SelectActor(nullptr);

@@ -109,6 +109,8 @@ private:
 	UWorld* EditorWorld = nullptr;
 	UWorld* PlayWorld = nullptr;
 
+	FVector UUIDLocation;
+
 	void ResetSceneSelection();
 
 	void CreateNewScene();

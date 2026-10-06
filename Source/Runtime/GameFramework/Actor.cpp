@@ -318,3 +318,28 @@ UActorComponent* AActor::FindComponentByName(FName Name) const
             return Component;
     return nullptr;
 }
+
+bool AActor::TryGetActorBounds(FBox& OutBounds) const
+{
+    bool bHasBounds = false;
+
+    for (UActorComponent* Component : Components)
+    {
+        UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component);
+        if (!Primitive)
+            continue;
+
+        FBox PrimitiveBounds = Primitive->CalcBounds();
+        if (bHasBounds)
+        {
+            OutBounds.Expand(PrimitiveBounds);
+        }
+        else
+        {
+            OutBounds = PrimitiveBounds;
+            bHasBounds = true;
+        }
+    }
+
+    return bHasBounds;
+}

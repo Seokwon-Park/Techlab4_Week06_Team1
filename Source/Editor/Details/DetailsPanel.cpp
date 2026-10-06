@@ -791,6 +791,8 @@ void FDetailsPanel::OnRender()
 
 	if (TargetActor)
 	{
+		UActorComponent* SelectCandidateComponent = TargetComponent;
+
 		DrawActorHeader(TargetActor, TargetComponent);
 		DrawCompoenetList(TargetActor, TargetComponent);				
 		ImGui::Separator();
@@ -800,7 +802,11 @@ void FDetailsPanel::OnRender()
 			ImGui::PushID(TargetComponent);
 			ImGui::SeparatorText("Component Properties");
 			DrawProperties(TargetComponent, CustomFont);
-			SelectComponent(TargetComponent);
+
+			if(SelectCandidateComponent != TargetComponent)
+			{
+				SelectComponent(TargetComponent);
+			}
 			if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(TargetComponent))
 			{
 				DrawMaterialSlots(MeshComponent);
@@ -905,6 +911,7 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 	const TArray<USceneComponent*>& Children = Component->GetAttachChildren();
 	const bool bIsLeaf = Children.IsEmpty();
 	bIsEditingName = (EditingNameComponent == Component);
+
 	ImGuiTreeNodeFlags Flags = ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_OpenOnArrow;
 	if (Component == OutSelectedComponent)
 	{
@@ -949,7 +956,7 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 		if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
 			OutSelectedComponent = Component;
 
-		if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+		if (Component != Root && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 		{
 			EditingNameComponent = Component;
 			strncpy_s(ComponentNameEditBuffer, sizeof(ComponentNameEditBuffer), Component->GetName().c_str(), _TRUNCATE);
@@ -984,7 +991,18 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 		{
 			if (!bCancelled && ComponentNameEditBuffer[0] != '\0')
 			{
-				Component->SetName(FName(ComponentNameEditBuffer));
+				FName NewName(ComponentNameEditBuffer);
+				AActor* Owner = Component->GetOwner();
+
+				UActorComponent* Existing = Owner->FindComponentByName(NewName);
+				if (!Existing)
+				{
+					Component->SetName(FName(ComponentNameEditBuffer));
+				}
+				else
+				{
+					HTR_LOG(Warning, "A component with this name already exists in this Actor.");
+				}
 			}
 			EditingNameComponent = nullptr;
 		}
@@ -1004,8 +1022,9 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 
 void FDetailsPanel::TryReparent(USceneComponent* DroppedComponent, USceneComponent* DragComponent)
 {
-	if (DroppedComponent != nullptr && DroppedComponent->GetAttachParent() != DragComponent
-		&& DroppedComponent != DragComponent)
+	if (DroppedComponent != nullptr 
+		|| DroppedComponent->GetAttachParent() != DragComponent
+		|| DroppedComponent != DragComponent)
 	{
 		DroppedComponent->SetupAttachment(DragComponent, EAttachmentRule::KeepWorld);
 	}

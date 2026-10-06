@@ -23,7 +23,11 @@ class FGizmo   // 상태 + 로직
 {
 public:
 	// Gizmo 대상 설정
-	void SetTarget(USceneComponent* InTarget) { Target = InTarget; }
+	void SetTarget(USceneComponent* InTarget, bool InbUseActorBounds = false)
+	{ 
+		Target = InTarget; 
+		bUseActorBounds = InbUseActorBounds; 
+	}
 	USceneComponent* GetTarget() const { return Target; }
 
 	// Gizmo 모드(이동, 회전, 크기)
@@ -68,6 +72,7 @@ private:
 	EGizmoSpace Space = EGizmoSpace::Local;
 	FTransform Transform = FTransform();
 	USceneComponent* Target = nullptr;
+	bool bUseActorBounds = false;
 
 	int HoveredAxis = -1;
 	int DraggingAxis = -1;
