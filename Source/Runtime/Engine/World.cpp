@@ -27,6 +27,8 @@
 
 #include "UObject/UObjectGlobals.h"
 
+#include "Collision/CollisionShape.h"
+
 DECLARE_CYCLE_STAT("Actor Tick", STAT_ActorTick); // Actor 틱 측정
 DECLARE_CYCLE_STAT("Update All Transforms", STAT_UpdateAllTransforms); // 각 Transform의 Update 시간 측정
 DECLARE_CYCLE_STAT("Gather Render Packets", STAT_GatherRenderPackets);
@@ -788,4 +790,9 @@ void UWorld::Serialize(FStructuredArchive::FRecord Record)
 
 	// (선택) 메인 카메라는 레벨에 속하지 않아 따로 쓴다. PIE 시작 시점이나 에디터 시점을 복원할 때 쓸 수 있다.
 	// MainCamera->GetCameraComponent()->Serialize(Record.EnterRecord("MainCamera"));
+}
+
+bool UWorld::SweepSingleByShape(FHitResult& OutHit, const FVector& Start, const FVector& End, const FQuat& Rot, const FCollisionShape& CollisionShape) const
+{
+	return false;
 }

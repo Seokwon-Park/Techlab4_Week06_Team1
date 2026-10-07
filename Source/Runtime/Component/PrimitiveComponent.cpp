@@ -8,6 +8,8 @@
 #include "Engine/PrimitiveSceneProxy.h"
 #include "Engine/Scene.h"
 
+#include "Collision/CollisionShape.h`"
+
 namespace
 {
 	FString PrimitiveTypeToString(EPrimitiveType Type)
@@ -94,22 +96,20 @@ bool UPrimitiveComponent::MoveComponent(const FVector& Delta, const FRotator& Ne
 	if (!bSweep)
 	{
 		SetWorldLocationAndRotation(Transform.Location + Delta, NewRotation, bSweep);
+		return true;
 	}
-	else
-	{
-		// Simple hit check by ray		
+	// Simple hit check by ray		
 
-		const FVector TraceStart = Transform.Location;
-		const FVector TraceEnd = TraceStart + Delta;
-		const FRotator InitialRotation = NewRotation;
+	const FVector TraceStart = Transform.Location;
+	const FVector TraceEnd = TraceStart + Delta;
+	const FRotator InitialRotation = NewRotation;
 
-		FHitResult BlockingHit;
-		BlockingHit.bBlockingHit = false;
-		BlockingHit.Time = 1.0f;
+	FHitResult BlockingHit;
+	BlockingHit.bBlockingHit = false;
+	BlockingHit.Time = 1.0f;
 
-		TArray<FHitResult> Hits;
-		FVector NewLocation = TraceStart;
-	}
+	TArray<FHitResult> Hits;
+	FVector NewLocation = TraceStart;
 
 	return true;
 }

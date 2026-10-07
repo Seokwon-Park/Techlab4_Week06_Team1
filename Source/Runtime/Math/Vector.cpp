@@ -318,6 +318,11 @@ FVector FVector::ProjectOnToNormal(const FVector& Normal) const
 	return (Normal * (*this | Normal));
 }
 
+FVector FVector::PointPlaneProject(const FVector& Point, const FVector& PlaneBase, const FVector& PlaneNormal)
+{
+	return Point - FVector::PointPlaneProject(Point, PlaneBase, PlaneNormal) * PlaneNormal;
+}
+
 FVector FVector::VectorPlaneProject(const FVector& V, const FVector& PlaneNormal)
 {
 	return V - V.ProjectOnToNormal(PlaneNormal);

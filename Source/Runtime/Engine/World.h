@@ -20,6 +20,8 @@
 class ULevel;
 class UBillboardComponent;
 
+struct FCollisionShape;
+
 struct FLODViewContext;
 
 struct FRenderStats
@@ -103,6 +105,9 @@ public:
 	UWorld* GetDuplicatedWorldForPIE(UWorld* InWorld);
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+
+	bool SweepSingleByShape(FHitResult& OutHit, const FVector& Start, const FVector& End, const FQuat& Rot, const FCollisionShape& CollisionShape)const;
+
 private:
 	EWorldType WorldType = EWorldType::None;
 

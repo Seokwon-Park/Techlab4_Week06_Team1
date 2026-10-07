@@ -110,6 +110,7 @@ public:
 	static FVector Zero();*/
 
 	FVector ProjectOnToNormal(const FVector& Normal) const;
+	static FVector PointPlaneProject(const FVector& Point, const FVector& PlaneBase, const FVector& PlaneNormal);
 	static FVector VectorPlaneProject(const FVector& V, const FVector& PlaneNormal);
 	static bool Coincident(const FVector& Normal1, const FVector& Normal2, float ParallelCosineThreshold = THRESH_NORMALS_ARE_PARALLEL);
 };
@@ -130,3 +131,28 @@ inline static const FVector XAxisVector = FVector(1.0f, 0.0f, 0.0f);
 inline static const FVector YAxisVector = FVector(0.0f, 1.0f, 0.0f);
 inline static const FVector ZAxisVector = FVector(0.0f, 0.0f, 1.0f);
 inline static const FVector ZeroVector = FVector(0.0f, 0.0f, 0.0f);
+
+inline bool FMathUtil::LineSphereIntersection(const FVector& Start, const FVector& Dir, float Length, const FVector& Origin, float Radius)
+{
+	const FVector EO = Start - Origin;
+	const float v = (Dir | (Origin - Start));
+	const float disc = Radius * Radius - ((EO | EO) - v * v);
+
+	if (disc >= 0)
+	{
+		const float Time = (v - sqrt(disc)) / Length;
+
+		if (Time >= 0 && Time < -1)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+}

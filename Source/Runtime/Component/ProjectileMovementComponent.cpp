@@ -44,7 +44,6 @@ void UProjectileMovementComponent::InitializeComponent()
 
 		UpdateComponentVelocity();
 	}
-
 }
 
 void UProjectileMovementComponent::TickComponent(float DeltaTime)
@@ -69,6 +68,7 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime)
 	int32 Iterations = 0;
 	FHitResult Hit(1.0f);
 
+	// Sub-stepping
 	while (bSimulationEnabled && RemainingTime >= MIN_TICK_TIME && Iterations < MaxSimulationIterations)
 	{
 		Iterations++;
@@ -188,7 +188,7 @@ FVector UProjectileMovementComponent::ComputAcceleration(const FVector& InVeloci
 
 FVector UProjectileMovementComponent::ComputeHomingAcceleration(const FVector& InVelocity, float DeltaTime) const
 {
-	FVector HomingAcceleration = (HomingTargetComponent->GetWorldLocation() - UpdatedComponent->GetWorldLocation()).Normalized();
+	FVector HomingAcceleration = (HomingTargetComponent->GetWorldLocation() - UpdatedComponent->GetWorldLocation()).GetSafeNormal() * HomingAccelerationMagnitude;
 	return HomingAcceleration;
 }
 
@@ -245,7 +245,7 @@ bool UProjectileMovementComponent::HandleDeflection(FHitResult& Hit, const FVect
 			FVector NewDir = (Normal ^ PreviousHitNormal);
 			NewDir = NewDir.Normalized();
 			Velocity = Velocity.ProjectOnToNormal(NewDir);
-			if ((OldVelocity | Velocity) < 0.0f)
+			if ((OldVelocity | Velocity) < 0.0f) // Opposed by normal or parallel, change direction
 			{
 				Velocity *= -1.0f;
 			}
@@ -253,8 +253,17 @@ bool UProjectileMovementComponent::HandleDeflection(FHitResult& Hit, const FVect
 		}
 		else
 		{
-			// move to new wall
+			// Move to new wall
 			Velocity = ComputeSlideVector(Velocity, 1.0f, Normal, Hit);
+		}
+
+		// Parallel to the impact surface
+		if (SubTickTimeRemaining > KINDA_SMALL_NUMBER)
+		{
+			if (!HandleSliding(Hit, SubTickTimeRemaining))
+			{
+				return false;
+			}
 		}
 	}
 
@@ -284,7 +293,7 @@ bool UProjectileMovementComponent::HandleSliding(FHitResult& Hit, float& SubTick
 			const FVector ProjectedForce = FVector::VectorPlaneProject(Force, OldHitNormal);
 			const FVector NewVelocity = Velocity + ProjectedForce;
 
-			const FVector FrictionForce = -NewVelocity.GetSafeNormal() * (-ForceDotN * Friction < NewVelocity.Size() ? -ForceDotN * Friction : NewVelocity.Size()); // TODO : Change to FMath::Min
+			const FVector FrictionForce = -NewVelocity.GetSafeNormal() * std::min(-ForceDotN * Friction, NewVelocity.Size()); // TODO : Change to FMath::Min
 			Velocity = ConstrainDirectionToPlane(NewVelocity + FrictionForce);
 		}
 		else

@@ -40,7 +40,7 @@ struct FHitResult
 	// Initailize empty hit result
 	inline void Init()
 	{
-		Time = 1.0f;		
+		Time = 1.0f;
 	}
 
 	inline void Init(FVector Start, FVector End)
