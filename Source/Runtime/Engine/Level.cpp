@@ -5,6 +5,7 @@
 // delete Actor가 소멸자를 호출하려면 AActor의 완전한 정의가 필요하다.
 // 전방 선언만으로는 C4150(소멸자 미호출)이 되어 액터가 GUObjectArray에 남는다.
 #include "GameFramework/Actor.h"
+#include "Component/ExponentialHeightFogComponent.h"
 
 void ULevel::AddActor(AActor* Actor)
 {
@@ -94,6 +95,13 @@ void ULevel::Serialize(FStructuredArchive::FRecord Record)
 		}
 
 		if (AActor* Actor = OwningWorld->SpawnActor(Class))
+		{
 			Actor->Serialize(ActorRecord);
+
+			// SpawnActor가 기본값으로 등록한 Fog를 방금 읽은 값으로 갱신한다.
+			for (UActorComponent* Component : Actor->GetComponents())
+				if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
+					OwningWorld->GetScene().UpdateFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
+		}
 	}
 }

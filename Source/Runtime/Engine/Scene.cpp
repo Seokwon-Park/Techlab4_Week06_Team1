@@ -81,6 +81,25 @@ void FScene::AddFogInfo(uint32 Id, const FFogInfo& FogInfo)
 	FogInfos.Add(sceneFogInfo);
 }
 
+void FScene::RemoveFogInfo(uint32 Id)
+{
+	// 렌더러는 FogInfos[0]만 쓰므로, 순서를 유지하려고 RemoveAtSwap 대신 RemoveAt을 쓴다.
+	for (int32 i = 0; i < FogInfos.Num(); ++i)
+	{
+		if (FogInfos[i].Id == Id)
+		{
+			FogInfos.RemoveAt(i);
+			return;
+		}
+	}
+}
+
+void FScene::RemoveAllFogInfo()
+{
+	FogInfos.Reset();
+
+}
+
 void FScene::UpdateFogInfo(uint32 Id, const FFogInfo& FogInfo)
 {
 	for (FExponentialHeightFogSceneInfo& SceneFogInfo : FogInfos)

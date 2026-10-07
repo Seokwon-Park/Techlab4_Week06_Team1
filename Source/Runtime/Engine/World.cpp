@@ -152,6 +152,7 @@ void UWorld::ClearWorld()
 	// 액터를 지우기 전에 렌더 프록시와 틱 등록부터 푼다. ClearActors는 액터를 delete만 하므로,
 	// 그대로 두면 지워진 컴포넌트를 가리키는 프록시가 FScene에 남아 다음 프레임에 터진다.
 	Scene.RemoveAllPrimitives();
+	Scene.RemoveAllFogInfo();
 	for (ULevel* Level : Levels)
 	{
 		for (AActor* Actor : Level->Actors)
@@ -561,6 +562,10 @@ bool UWorld::DestroyActor(AActor* Actor)
 		if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
 		{
 			Scene.RemovePrimitive(Primitive);
+		}
+		else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
+		{
+			Scene.RemoveFogInfo(Fog->GetUUID());
 		}
 	}
 

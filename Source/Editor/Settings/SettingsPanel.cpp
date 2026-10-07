@@ -44,7 +44,7 @@ void FSettingsPanel::OnRender()
 	ImGui::Checkbox("Show Object UUID", &Settings.bShowUUID);
 	ImGui::Checkbox("FXAA", &Settings.bEnableFXAA);
 	ImGui::Checkbox("Depth View", &Settings.bDepthView);
-
+	ImGui::Checkbox("Exponential Height Fog", &Settings.bExponentialHeightFog);
 	//////////////////////////////////////////////////////////
 
 	ImGui::Dummy(ImVec2(0.0f, SectionGap));

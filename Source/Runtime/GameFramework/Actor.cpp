@@ -4,6 +4,7 @@
 #include "Engine/Level.h"
 #include "Component/SceneComponent.h"
 #include "Component/ParticleSubUVComponent.h"
+#include "Component/ExponentialHeightFogComponent.h"
 #include "Core/EngineLog.h"
 #include "UObject/Object.h"
 
@@ -338,6 +339,10 @@ void AActor::DestroyComponent(UActorComponent* Component)
     if (UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component))
     {
         World->GetScene().RemovePrimitive(Primitive);
+    }
+    else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
+    {
+        World->GetScene().RemoveFogInfo(Fog->GetUUID());
     }
     RemoveOwnedComponent(Component);
     delete Component;
