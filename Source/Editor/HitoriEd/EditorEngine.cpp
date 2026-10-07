@@ -342,7 +342,7 @@ void UEditorEngine::TickWorldAndEditor(const float DeltaTime)
 // 공유 월드 캡처로 활성 View별 렌더 큐를 만들고 렌더한다.
 void UEditorEngine::RenderMultipleViewports()
 {
-	GetActiveWorld()->UpdateFireBallLight(Renderer);
+	GetActiveWorld()->GetScene().UpdateFireBallLight(Renderer);
 	for (int32 ViewIndex = 0; ViewIndex < 4; ++ViewIndex)
 	{
 		const bool bActive = MultipleViewportsAdapter.IsViewActive(ViewIndex);

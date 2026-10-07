@@ -14,7 +14,6 @@
 #include "Collision/Ray.h"
 #include "Component/BillboardComponent.h"
 #include "Component/ExponentialHeightFogComponent.h"
-#include "Component/FireBallComponent.h"
 
 #include "Component/StaticMeshComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
@@ -94,6 +93,8 @@ AActor* UWorld::SpawnActor(UClass* Class, FName InName, const FTransform* Transf
 			Scene.AddPrimitive(Primitive);
 		else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
 			Scene.AddFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
+		else if (UFireBallComponent* FireBall = Cast<UFireBallComponent>(Component))
+			Scene.RegisterFireBall(FireBall);
 	}
 
 	// 4. Level->Actors에 등록
@@ -166,8 +167,6 @@ void UWorld::GatherRenderPackets(FRenderQueue& RenderQueue, const FLODViewContex
 	// 멤버로 두어 매 프레임 용량을 재사용한다.
 	RenderStats.Reset();
 	VisibleProxies.Reset();
-
-	UpdateFireBallLight(Renderer);
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FrustumCull);
@@ -692,86 +691,6 @@ UWorld* UWorld::CreateWorld(const EWorldType InWorldType, bool bInformEngineOfWo
 	return NewWorld;
 }
 
-void UWorld::UpdateFireBallLight(FRenderer* Renderer)
-{
-	if (!Renderer)
-		return;
-
-	FFireBallLight Data{};
-	FFireBallLightConstants Constants{};
-
-	Constants.LightCount = 0;
-
-	// 기본값: 활성 FireBall 없음
-	Data.PositionRadius = FVector4(0, 0, 0, 0);
-	Data.ColorIntensity = FVector4(0, 0, 0, 0);
-	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
-
-	for (UFireBallComponent* FireBall : FireBallComponents)
-	{
-		if (Constants.LightCount >= MaxFireBalls)
-		{
-			break; // 최대 FireBall 수를 초과하면 루프 종료
-		}
-
-		if (!FireBall)
-			continue;
-
-		const FVector Position = FireBall->GetWorldLocation();
-		const FVector4 Color = FireBall->GetLightColor();
-
-		Data.PositionRadius = FVector4(
-			Position.X,
-			Position.Y,
-			Position.Z,
-			std::max<float>(FireBall->GetRadius(), 0.001f)
-		);
-
-		Data.ColorIntensity = FVector4(
-			Color.X,
-			Color.Y,
-			Color.Z,
-			std::max<float>(FireBall->GetIntensity(), 0.0f)
-		);
-
-		Data.FalloffEnabled = FVector4(
-			std::max<float>(FireBall->GetRadiusFalloff(), 0.001f),
-			1.0f,
-			0.0f,
-			0.0f
-		);
-
-		Constants.Light[Constants.LightCount] = Data;
-		Constants.LightCount++;
-	}
-
-	Renderer->SetFireBallLight(Constants);
-}
-
-void UWorld::RegisterFireBall(UFireBallComponent* FireBall)
-{
-	if (!FireBall)
-		return;
-
-	for (UFireBallComponent* Existing : FireBallComponents)
-	{
-		if (Existing == FireBall)
-			return;
-	}
-	FireBallComponents.Add(FireBall);
-}
-void UWorld::UnregisterFireBall(UFireBallComponent* FireBall)
-{
-	for (uint32 i = 0; i < FireBallComponents.Num(); ++i)
-	{
-		if (FireBallComponents[i] == FireBall)
-		{
-			FireBallComponents.RemoveAt(i, 1);
-			return;
-		}
-	}
-}
-
 UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld * InWorld)
 {
 	if (!InWorld)
@@ -822,6 +741,8 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 				Scene.AddPrimitive(Primitive);
 			else if (UExponentialHeightFogComponent* Fog = Cast<UExponentialHeightFogComponent>(Component))
 				Scene.AddFogInfo(Fog->GetUUID(), Fog->GetFogInfo());
+			else if (UFireBallComponent* FireBall = Cast<UFireBallComponent>(Component))
+				Scene.RegisterFireBall(FireBall);
 		}
 
 		BeginPlayList.Enqueue(Actor);   // Tick 등록은 BeginPlay에서 함

@@ -3,9 +3,11 @@
 #include "PrimitiveSceneProxy.h"
 #include "Component/BillboardComponent.h"
 #include "Component/PrimitiveComponent.h"
+#include "Component/FireBallComponent.h"
 #include "Math/Frustum.h"
 #include "Math/BVH.h"
 #include "Render/FogInfo.h"
+#include "Render/Renderer.h"
 
 struct FExponentialHeightFogSceneInfo
 {
@@ -32,6 +34,10 @@ public:
 	void MarkDirty(FPrimitiveSceneProxy* Proxy);
 	void MarkRenderStateDirty(FPrimitiveSceneProxy* Proxy);
 
+	void UpdateFireBallLight(FRenderer* Renderer);
+	void RegisterFireBall(UFireBallComponent* FireBall);
+	void UnregisterFireBall(UFireBallComponent* FireBall);
+
 	TArray<FPrimitiveSceneProxy*> Proxies;
 	TArray<FPrimitiveSceneProxy*> DirtyProxies;
 	TArray<FPrimitiveSceneProxy*> RenderStateDirtyProxies;
@@ -50,7 +56,5 @@ public:
 	};
 	bool bElementListChanged = false;
 	
-
-
-
+	TArray<UFireBallComponent*> FireBallComponents;
 };
