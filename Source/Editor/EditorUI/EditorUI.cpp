@@ -1,13 +1,15 @@
 #include "EnginePCH.h"
 #include "Editor/EditorUI/EditorUI.h"
 
+
 bool FEditorUI::Init(bool bInUseDockSpace, bool bInPassthruCentralNode)
 {
 	bUseDockSpace = bInUseDockSpace;
 	bPassthruCentralNode = bInPassthruCentralNode;
-	return true;
 
-	return false;
+	Toolbar = MakeUnique<FLevelEditorToolbar>();
+
+	return true;
 }
 
 void FEditorUI::Tick(float DeltaTime)
@@ -22,6 +24,8 @@ void FEditorUI::Tick(float DeltaTime)
 void FEditorUI::OnRender()
 {
 	DrawMainMenuBar();
+
+	if (Toolbar) Toolbar->Draw();
 
 	if (bUseDockSpace)
 	{

@@ -2,6 +2,8 @@
 
 #include "Editor/EditorUI/EditorPanel.h"
 
+#include "Editor/LevelEditor/LevelEditorToolbar.h"
+
 #include <functional>
 
 class FEditorUI
@@ -22,6 +24,8 @@ public:
 		return Ret;
 	}
 
+	FLevelEditorToolbar* GetToolbar() const { return Toolbar.get(); }
+
 	void SetNewSceneCallback(std::function<void()> InCallback) { OnNewScene = InCallback; }
 	void SetOpenSceneCallback(std::function<void()> InCallback) { OnOpenScene = InCallback; }
 	void SetSaveSceneCallback(std::function<void()> InCallback) { OnSaveScene = InCallback; }
@@ -34,6 +38,8 @@ private:
 	void DrawMainMenuBar();
 
 	TArray<TUniquePtr<IEditorPanel>> Panels;
+	TUniquePtr<FLevelEditorToolbar> Toolbar;
+
 
 	std::function<void()> OnNewScene;
 	std::function<void()> OnOpenScene;

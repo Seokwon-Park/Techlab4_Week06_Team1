@@ -718,8 +718,9 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 
-	TArray<UObject*> ObjectsToFixReferences;
-	TMap<UObject*, UObject*> ReplacementMap;
+	// 아직 필요 없는애들
+	//TArray<UObject*> ObjectsToFixReferences;
+	//TMap<UObject*, UObject*> ReplacementMap;
 
 	if (!bDuplicateForPIE)
 	{

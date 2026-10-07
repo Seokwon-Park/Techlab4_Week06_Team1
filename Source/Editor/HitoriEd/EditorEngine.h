@@ -20,7 +20,6 @@
 #include "Editor/OutputLog/OutputLogPanel.h"
 #include "Editor/Details/DetailsPanel.h"
 #include "Editor/EditorControls/EditorControlsPanel.h"
-#include "Editor/EditorControls/ToolbarPanel.h"
 #include "Editor/Settings/SettingsPanel.h"
 #include "Editor/Viewports/ViewportsPanel.h"
 #include "Editor/LevelEditor/MultipleViewports/Adapter/MultipleViewportsAdapter.h"
@@ -60,13 +59,13 @@ public:
 
 	//Play 버튼을 눌렀을때 Play Session 실행을 요청한다.
 	inline void RequestPlaySession() { bPlaySessionRequested = true; }
-	inline void RequestEndPlayMap() { bRequestEndPlayMapQueued = true; }
+	inline void RequestEndPlayMap() { bRequestEndPlayMapQueued = true; bIsPaused = false; }
 
 	//실제 PIE 를 실행
 	void StartPlayInEditorSession();
 	UWorld* CreatePIEWorldByDuplication(FWorldContext& PIEContext, UWorld* InEditorWorld);
 
-	void OnActiveWorldChanged() {};
+	void OnActiveWorldChanged();
 
 	void EndPlayMap();
 
@@ -124,7 +123,6 @@ private:
 	TUniquePtr<FFXAARenderer> FXAARenderer;
 	TUniquePtr<FDepthViewRenderer> DepthViewRenderer;
 
-
 	UFont* SystemFont;
 
 	FOutputLogPanel* OutputLogPanel = nullptr;
@@ -137,15 +135,24 @@ private:
 	FRenderQueue RenderQueue;
 	FOutlinerPanel* OutlinerPanel = nullptr;
 	FContentDrawerPanel* ContentDrawerPanel = nullptr;
-	FToolbarPanel* ToolbarPanel = nullptr;
 
 	UWorld* EditorWorld = nullptr;
 	UWorld* PlayWorld = nullptr;
 
 	FVector UUIDLocation;
 
+	FEditorCommand Save;
+
+	FEditorCommand Play;
+	FEditorCommand Pause;
+	FEditorCommand Resume;
+	FEditorCommand StepFrame;
+	FEditorCommand Stop;
+
 	bool bPlaySessionRequested = false;
 	bool bRequestEndPlayMapQueued = false;
+	bool bStepRequested = false;
+	bool bIsPaused = false;
 
 	void ResetSceneSelection();
 
