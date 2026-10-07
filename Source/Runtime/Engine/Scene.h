@@ -26,6 +26,7 @@ public:
 
 	void AddFogInfo(uint32 Id, const FFogInfo& FogInfo);
 	void RemoveFogInfo(uint32 Id);
+	void RemoveAllFogInfo();
 	void UpdateFogInfo(uint32 Id, const FFogInfo& FogInfo);
 	void UpdateAllTransforms();
 
