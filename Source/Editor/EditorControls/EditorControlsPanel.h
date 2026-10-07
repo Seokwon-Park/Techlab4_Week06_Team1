@@ -31,7 +31,7 @@ public:
 
 	int32 SelectedIndex = 0;
 
-	const char* Items[6] ={"StaticMesh","Particle","Text","Light","ExponentialHeightFog", "FireBall"};
+	const char* Items[7] ={"Actor", "StaticMesh","Particle","Text","Light","ExponentialHeightFog", "FireBall"};
 
 	FGizmo* Gizmo = nullptr;
 	int32 GizmoSelectedIndex = 0;
@@ -42,7 +42,8 @@ public:
 
 	TArray<UClass*> Classes
 	{
-		AStaticMeshActor::StaticClass(),
+		AActor::StaticClass(),
+		AStaticMeshActor::StaticClass(),  
 		AParticleActor::StaticClass(),
 		ATextRenderActor::StaticClass(),
 		ALightActor::StaticClass(),
