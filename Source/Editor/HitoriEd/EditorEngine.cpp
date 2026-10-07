@@ -174,15 +174,23 @@ bool UEditorEngine::Init()
 			Outline->SetTarget(Primitive);
 		});
 	DetailsPanel->SetSelectionCallback(
-		[this](USceneComponent* SceneComponent)
+		[this](UActorComponent* Component)
 		{
-			if (SceneComponent == SceneComponent->GetOwner()->GetRootComponent())
+			if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 			{
-				Gizmo->SetTarget(SceneComponent, true);
+				AActor* Owner = SceneComponent->GetOwner();
+				if (Owner && SceneComponent == Owner->GetRootComponent())
+				{
+					Gizmo->SetTarget(SceneComponent, true);
+				}
+				else
+				{
+					Gizmo->SetTarget(SceneComponent);
+				}
 			}
 			else
 			{
-				Gizmo->SetTarget(SceneComponent);
+				Gizmo->SetTarget(nullptr);
 			}
 		}
 	);
@@ -755,7 +763,6 @@ void UEditorEngine::DeleteComponent(UActorComponent* Component)
 {
 	if (!Component)
 		return;
-
 	DetailsPanel->SelectComponent(nullptr);
 	Outline->SetTarget(nullptr);
 	Component->GetOwner()->DestroyComponent(Component);

@@ -7,7 +7,7 @@
 
 struct FTransform;
 
-using DetailsSelectionCallback = std::function<void(USceneComponent*)>;
+using DetailsSelectionCallback = std::function<void(UActorComponent*)>;
 using DetailsDeleteComponentCallback = std::function<void(UActorComponent*)>;
 
 class FDetailsPanel : public IEditorPanel
