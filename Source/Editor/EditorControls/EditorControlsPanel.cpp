@@ -33,6 +33,9 @@ void FEditorControlsPanel::Tick(float DeltaTime)
 // 선택한 클래스의 액터를 월드에 생성한다.
 void FEditorControlsPanel::AddActor(uint32 Index)
 {
+	if (IsPlayingQuery && IsPlayingQuery())
+		return;
+
 	World->SpawnActor(Classes[Index]);
 }
 
@@ -79,10 +82,14 @@ void FEditorControlsPanel::OnRender()
 
 	ImGui::SameLine();
 
+	// PIE 중에는 보이지 않는 에디터 월드에 스폰되므로 막는다.
+	const bool bPlaying = IsPlayingQuery && IsPlayingQuery();
+	ImGui::BeginDisabled(bPlaying);
 	if (ImGui::Button("Spawn", ImVec2(SpawnButtonWidth, 0)))
 	{
 		AddActor(SelectedIndex);
 	}
+	ImGui::EndDisabled();
 
 	ImGui::SameLine();
 	ImGui::TextDisabled("%s", CountText);

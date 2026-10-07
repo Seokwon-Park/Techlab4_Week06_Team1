@@ -20,6 +20,13 @@ class UWorld;
 class FMultipleViewportsAdapter
 {
 public:
+    // 패널의 네 View(0~3) 밖에서 그리는 View(PIE 별도 창 등). 레이아웃·입력·피킹에는 참여하지 않고
+    // 카메라 Override와 SetExternalViewSize로만 활성화되며 렌더·컬링 함수에서만 쓴다.
+    static constexpr int32 ExternalViewIndex = 4;
+    static constexpr int32 MaxViewCount = 5;
+    // 외부 View의 렌더 크기를 지정한다. 0이면 비활성이다.
+    void SetExternalViewSize(uint32 Width, uint32 Height);
+
     // 엔진 메인 카메라 설정을 읽고 네 View의 초기 상태와 프리셋을 구성한다.
     void InitializeFromWorld(UWorld& World);
 
@@ -39,6 +46,11 @@ public:
     const FViewCamera& GetViewCamera(int32 ViewIndex) const;
     // 선택한 프리셋의 위치·방향·투영 모드를 지정 View에 적용한다.
     void ApplyCameraPreset(int32 ViewIndex, EMultipleViewportsCameraPreset Preset);
+    // 저장 카메라는 그대로 두고 렌더·컬링·피킹에만 외부 카메라(PIE 게임 카메라 등)를 쓴다.
+    // Forward는 정규화되어 있어야 하며 Roll은 버린다.
+    void SetViewCameraOverride(int32 ViewIndex, const FVector& Location, const FVector& Forward, const FCameraProjection& Projection);
+    void ClearViewCameraOverride(int32 ViewIndex);
+    bool HasViewCameraOverride(int32 ViewIndex) const { return ViewIndex >= 0 && ViewIndex < MaxViewCount && bHasCameraOverride[ViewIndex]; }
     // 지정 View에 적용된 카메라 프리셋을 반환한다.
     EMultipleViewportsCameraPreset GetCameraPreset(int32 ViewIndex) const;
     // 프리셋 또는 카메라 Forward 지배축으로 표시할 Grid 평면을 고른다.
@@ -62,8 +74,8 @@ public:
     // 속성 창에서 선택한 View를 공통 편집 대상으로 지정한다.
     void SetEditorViewIndex(int32 Index) { if (Index >= 0 && Index < 4) EditorViewIndex = Index; }
     // View별 장면 래스터라이저 모드를 저장하고 조회한다.
-    void SetViewWireframe(int32 Index, bool Value) { if (Index >= 0 && Index < 4) ViewWireframe[Index] = Value; }
-    bool IsViewWireframe(int32 Index) const { return Index >= 0 && Index < 4 && ViewWireframe[Index]; }
+    void SetViewWireframe(int32 Index, bool Value) { if (Index >= 0 && Index < MaxViewCount) ViewWireframe[Index] = Value; }
+    bool IsViewWireframe(int32 Index) const { return Index >= 0 && Index < MaxViewCount && ViewWireframe[Index]; }
     // 현재 마우스가 올라간 View 인덱스를 반환한다.
     int32 GetHoveredViewIndex() const { return InputState.HoveredViewIndex; }
     // 우클릭 입력을 Capture 중인 View 인덱스를 반환한다.
@@ -104,6 +116,13 @@ public:
     const FSplitRatio& GetSplitRatio() const { return SplitRatio; }
 
 private:
+    // Override가 있으면 그 카메라를, 없으면 저장 카메라를 반환한다. 외부 View는 Override만 쓴다.
+    const FViewCamera& GetEffectiveCamera(int32 ViewIndex) const
+    {
+        if (ViewIndex == ExternalViewIndex || bHasCameraOverride[ViewIndex])
+            return CameraOverrides[ViewIndex];
+        return Views.Cameras[ViewIndex];
+    }
     // 직교 View의 논리 위치는 유지하고 렌더·컬링·피킹용 깊이 범위만 확장한다.
     FViewCamera GetRenderCamera(int32 ViewIndex) const;
     // 현재 호출에서 계산한 행렬·절두체를 보관한다.
@@ -114,18 +133,21 @@ private:
     };
     // 호출할 때마다 현재 카메라로 VP와 절두체를 계산한다.
     const PreparedView& PrepareView(int32 ViewIndex) const;
-    mutable PreparedView PreparedViews[4]{};
+    mutable PreparedView PreparedViews[MaxViewCount]{};
     static constexpr float MinimumSplitRatio = 0.1f;
 
     FViewSet Views{};
     EMultipleViewportsCameraPreset CameraPresets[4]{};
     FSplitRatio SplitRatio{};
     FViewInputState InputState{};
-    FRect ViewRects[4]{};
+    // Core 함수는 앞의 네 Rect만 읽고 쓴다. 마지막 칸은 외부 View다.
+    FRect ViewRects[MaxViewCount]{};
     int32 SingleViewIndex = 0;
     int32 ActiveViewIndex = InvalidViewIndex;
     int32 EditorViewIndex = 0;
-    bool ViewWireframe[4]{};
+    bool ViewWireframe[MaxViewCount]{};
+    FViewCamera CameraOverrides[MaxViewCount]{};
+    bool bHasCameraOverride[MaxViewCount]{};
     FPickHit LastPick{};
 
     // 이번 프레임의 엔진 객체와 파티클 준비 상태를 보관한다. 포인터는 다음 캡처 전까지 유효해야 한다.
@@ -142,7 +164,7 @@ private:
     // 불투명 파티클은 최종 렌더러가 거리 정렬하지 않아 기존 Core 정렬을 유지한다.
     TArray<FParticleSortInput> SortInputs;
     TArray<ObjectId> SortedParticleIds;
-    TArray<ObjectId> VisibleIds[4];
+    TArray<ObjectId> VisibleIds[MaxViewCount];
     TArray<UStaticMeshComponent*> PendingStaticMeshes;
     TArray<FLODSelectionInput> LODInputs;
     TArray<uint8> SelectedLODs;

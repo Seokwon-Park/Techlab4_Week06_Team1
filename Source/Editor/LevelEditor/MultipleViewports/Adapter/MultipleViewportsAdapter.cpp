@@ -149,6 +149,12 @@ FQuat MakeCameraRotation(const float YawDegrees, const float PitchDegrees)
 
 } // 익명 네임스페이스
 
+// 외부 View Rect는 원점 기준 렌더 타깃 크기와 같다.
+void FMultipleViewportsAdapter::SetExternalViewSize(const uint32 Width, const uint32 Height)
+{
+    ViewRects[ExternalViewIndex] = {0.0f, 0.0f, static_cast<float>(Width), static_cast<float>(Height)};
+}
+
 // 메인 카메라 투영값을 공유하고 네 View의 기본 프리셋 상태를 만든다.
 void FMultipleViewportsAdapter::InitializeFromWorld(UWorld& World)
 {
@@ -215,6 +221,29 @@ void FMultipleViewportsAdapter::ApplyCameraProperties(const int32 ViewIndex,
     SetViewCamera(ViewIndex, Camera);
     if (bKeepPreset)
         CameraPresets[ViewIndex] = PreviousPreset;
+}
+
+// 외부 카메라의 위치·방향·투영을 Override로 보관한다. 저장 카메라와 프리셋은 바꾸지 않는다.
+void FMultipleViewportsAdapter::SetViewCameraOverride(const int32 ViewIndex, const FVector& Location,
+    const FVector& Forward, const FCameraProjection& Projection)
+{
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
+    FViewCamera& Camera = CameraOverrides[ViewIndex];
+    Camera.Transform.Location = Location;
+    const FVector Direction = NormalizedOrZero(Forward);
+    Camera.Transform.Rotation = MakeCameraRotation(
+        std::atan2(Direction.Y, Direction.X) * 180.0f / Pi,
+        std::asin(FMath::Clamp(Direction.Z, -1.0f, 1.0f)) * 180.0f / Pi);
+    Camera.Projection = Projection;
+    ConstrainOrthographicWidth(Camera.Projection, ViewRects[ViewIndex]);
+    bHasCameraOverride[ViewIndex] = true;
+}
+
+// Override를 해제해 저장 카메라로 되돌린다.
+void FMultipleViewportsAdapter::ClearViewCameraOverride(const int32 ViewIndex)
+{
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
+    bHasCameraOverride[ViewIndex] = false;
 }
 
 // 범위를 검사한 뒤 지정 View 카메라의 const 참조를 반환한다.
@@ -294,7 +323,7 @@ EGridPlane FMultipleViewportsAdapter::GetGridPlane(const int32 ViewIndex) const
         break;
     }
 
-    const FVector Forward = CameraForward(Views.Cameras[ViewIndex].Transform.Rotation);
+    const FVector Forward = CameraForward(GetEffectiveCamera(ViewIndex).Transform.Rotation);
     const float AbsX = std::fabs(Forward.X);
     const float AbsY = std::fabs(Forward.Y);
     const float AbsZ = std::fabs(Forward.Z);
@@ -365,6 +394,8 @@ void FMultipleViewportsAdapter::UpdateInput(
     if (InputState.CapturedViewIndex != InvalidViewIndex)
         ActiveViewIndex = InputState.CapturedViewIndex;
     if (!IsViewActive(ActiveViewIndex)) return;
+    // 외부 카메라가 그리는 View는 에디터 카메라 조작을 받지 않는다.
+    if (bHasCameraOverride[ActiveViewIndex]) return;
 
     constexpr float PerspectiveWheelSpeed = 0.1f;
     FCameraMoveInput Input{};
@@ -483,6 +514,9 @@ void FMultipleViewportsAdapter::CaptureWorld(UWorld& World)
 // 유효 Rect와 Single 대상 인덱스 또는 Quad 모드로 View 활성 여부를 판정한다.
 bool FMultipleViewportsAdapter::IsViewActive(const int32 ViewIndex) const
 {
+    // 외부 View는 레이아웃과 무관하게 크기와 카메라가 주어졌을 때만 활성이다.
+    if (ViewIndex == ExternalViewIndex)
+        return bHasCameraOverride[ViewIndex] && IsViewRectValid(ViewRects[ViewIndex]);
     if (ViewIndex < 0 || ViewIndex >= 4 || !IsViewRectValid(ViewRects[ViewIndex]))
         return false;
     return Views.Mode == ELayoutMode::QuadSplit || ViewIndex == SingleViewIndex;
@@ -491,15 +525,15 @@ bool FMultipleViewportsAdapter::IsViewActive(const int32 ViewIndex) const
 // 범위를 검사한 뒤 계산된 View Rect의 const 참조를 반환한다.
 const FRect& FMultipleViewportsAdapter::GetViewRect(const int32 ViewIndex) const
 {
-    assert(ViewIndex >= 0 && ViewIndex < 4);
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
     return ViewRects[ViewIndex];
 }
 
 // 직교 화면의 XY는 유지하면서 렌더·컬링·피킹용 카메라만 후퇴시켜 양방향 깊이를 확보한다.
 FViewCamera FMultipleViewportsAdapter::GetRenderCamera(const int32 ViewIndex) const
 {
-    assert(ViewIndex >= 0 && ViewIndex < 4);
-    FViewCamera Camera = Views.Cameras[ViewIndex];
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
+    FViewCamera Camera = GetEffectiveCamera(ViewIndex);
     if (Camera.Projection.Mode != EProjectionMode::Orthographic)
         return Camera;
 
@@ -545,22 +579,22 @@ FMatrix FMultipleViewportsAdapter::GetEngineViewProjection(const int32 ViewIndex
 // Native 카메라 위치를 엔진 FVector 그대로 반환한다.
 FVector FMultipleViewportsAdapter::GetEngineCameraLocation(const int32 ViewIndex) const
 {
-    assert(ViewIndex >= 0 && ViewIndex < 4);
-    return Views.Cameras[ViewIndex].Transform.Location;
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
+    return GetEffectiveCamera(ViewIndex).Transform.Location;
 }
 
 // Native 회전에서 정규화한 Forward를 엔진 FVector로 반환한다.
 FVector FMultipleViewportsAdapter::GetEngineCameraForward(const int32 ViewIndex) const
 {
-    assert(ViewIndex >= 0 && ViewIndex < 4);
-    return NormalizedOrZero(CameraForward(Views.Cameras[ViewIndex].Transform.Rotation));
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
+    return NormalizedOrZero(CameraForward(GetEffectiveCamera(ViewIndex).Transform.Rotation));
 }
 
 // 위치·크기·View 카메라로 엔진 규약의 Billboard 행렬을 계산한다.
 FMatrix FMultipleViewportsAdapter::BuildEngineBillboardMatrix(const int32 ViewIndex, const FVector& WorldPosition, const float Width, const float Height) const
 {
-    assert(ViewIndex >= 0 && ViewIndex < 4);
-    const FViewCamera& ViewCamera = Views.Cameras[ViewIndex];
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
+    const FViewCamera& ViewCamera = GetEffectiveCamera(ViewIndex);
     if (ViewCamera.Projection.Mode == EProjectionMode::Orthographic)
     {
         // 직교 투영의 모든 시선은 평행하므로 카메라 위치가 아니라 고정된 화면 기저를 사용한다.
@@ -594,8 +628,8 @@ FMatrix FMultipleViewportsAdapter::BuildEngineBillboardMatrix(const int32 ViewIn
 // 지정 View 카메라의 투영 모드가 Orthographic인지 검사한다.
 bool FMultipleViewportsAdapter::IsOrthographic(const int32 ViewIndex) const
 {
-    assert(ViewIndex >= 0 && ViewIndex < 4);
-    return Views.Cameras[ViewIndex].Projection.Mode == EProjectionMode::Orthographic;
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
+    return GetEffectiveCamera(ViewIndex).Projection.Mode == EProjectionMode::Orthographic;
 }
 
 // 활성 View Rect 기준 로컬 좌표를 Core로 역투영하고 엔진 Ray로 변환한다.
@@ -616,7 +650,7 @@ bool FMultipleViewportsAdapter::TryGetActiveViewRay(const FVector2 LocalMousePos
 // 범위를 검사한 뒤 지정 View의 재사용 가시 ID 버퍼 크기를 반환한다.
 std::size_t FMultipleViewportsAdapter::GetVisibleObjectCount(const int32 ViewIndex) const
 {
-    assert(ViewIndex >= 0 && ViewIndex < 4);
+    assert(ViewIndex >= 0 && ViewIndex < MaxViewCount);
     return VisibleIds[ViewIndex].Num();
 }
 
@@ -631,7 +665,7 @@ void FMultipleViewportsAdapter::BuildRenderQueue(const int32 ViewIndex, FRenderQ
         CullForView(RenderObjects, PrepareView(ViewIndex).Frustum, VisibleIds[ViewIndex]);
     }
     const FRect& Rect = GetViewRect(ViewIndex);
-    const FViewCamera& ViewCamera = Views.Cameras[ViewIndex];
+    const FViewCamera& ViewCamera = GetEffectiveCamera(ViewIndex);
     const FMatrix Projection = BuildProjectionMatrix(
         ViewCamera.Projection, Rect.Width / Rect.Height);
     const float ScaleX = Projection.M[1][0];
@@ -677,7 +711,7 @@ void FMultipleViewportsAdapter::BuildRenderQueue(const int32 ViewIndex, FRenderQ
                 SortInputs.Reset();
                 for (const int32 Index : Snapshot.AliveParticleIndices)
                     SortInputs.Add({static_cast<ObjectId>(Index + 1), Particles[Index].Location});
-                SortParticlesByCameraDistance(SortInputs, Views.Cameras[ViewIndex].Transform.Location, SortedParticleIds);
+                SortParticlesByCameraDistance(SortInputs, ViewCamera.Transform.Location, SortedParticleIds);
             }
             for (int32 Order = 0; Order < Snapshot.AliveParticleIndices.Num(); ++Order)
             {

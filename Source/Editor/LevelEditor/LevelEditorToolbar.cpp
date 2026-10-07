@@ -78,6 +78,8 @@ void FLevelEditorToolbar::DrawPlayGroup()
 	{
 		Button(Command.Label, Command);
 	}
+	if (!bFirst) ImGui::SameLine();
+	DrawPlayModeMenu();
 	//Button("##Play", Play);
 	//Button("##Pause", Pause);
 	//Button("##Resume", Resume);
@@ -85,4 +87,30 @@ void FLevelEditorToolbar::DrawPlayGroup()
 	//Button("##Stop", Stop);
 
 	EndToolbarGroup();
+}
+
+void FLevelEditorToolbar::DrawPlayModeMenu()
+{
+	if (!GetPlayMode || !SetPlayMode)
+		return;
+
+	// 실행 중에는 모드를 바꿔도 현재 세션에 반영되지 않으므로 막는다.
+	const bool bCanChange = !CanChangePlayMode || CanChangePlayMode();
+	ImGui::BeginDisabled(!bCanChange);
+	if (ImGui::ArrowButton("##PlayModeMenu", ImGuiDir_Down))
+		ImGui::OpenPopup("PlayModePopup");
+	ImGui::EndDisabled();
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+		ImGui::SetTooltip("Play Mode: %s",
+			GetPlayMode() == EPlayModeType::InViewport ? "Selected Viewport" : "New Editor Window (PIE)");
+
+	if (ImGui::BeginPopup("PlayModePopup"))
+	{
+		const EPlayModeType Current = GetPlayMode();
+		if (ImGui::MenuItem("Selected Viewport", nullptr, Current == EPlayModeType::InViewport))
+			SetPlayMode(EPlayModeType::InViewport);
+		if (ImGui::MenuItem("New Editor Window (PIE)", nullptr, Current == EPlayModeType::InEditorFloating))
+			SetPlayMode(EPlayModeType::InEditorFloating);
+		ImGui::EndPopup();
+	}
 }

@@ -17,9 +17,6 @@ void FWindow::SetWndProcHook(FWndProcHook Hook)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (GWndProcHook && GWndProcHook(hWnd, msg, wParam, lParam))
-		return true;
-
 	FWindow* window = nullptr;
 
 	if (msg == WM_NCCREATE)
@@ -33,6 +30,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		window = reinterpret_cast<FWindow*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 	}
+
+	// 훅을 받지 않는 창의 메시지는 ImGui 입력 상태에 섞이지 않게 바로 창이 처리한다.
+	if ((!window || window->ReceivesWndProcHook()) &&
+		GWndProcHook && GWndProcHook(hWnd, msg, wParam, lParam))
+		return true;
 
 	if (window)
 		return window->HandleMessage(hWnd, msg, wParam, lParam);
@@ -80,6 +82,15 @@ void FWindow::Show()
 	ShowWindow(hWnd, SW_SHOW);
 	UpdateWindow(hWnd);
 	SetForegroundWindow(hWnd);
+}
+
+void FWindow::Destroy()
+{
+	if (!hWnd)
+		return;
+
+	DestroyWindow(hWnd);
+	hWnd = nullptr;
 }
 
 void FWindow::ProcessMessage(bool& bIsRunning)
@@ -175,8 +186,18 @@ LRESULT FWindow::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
 		break;
 	}
 
+	case WM_CLOSE:
+		if (bQuitOnClose)
+			return DefWindowProc(hWnd, msg, wParam, lParam);
+		// 소유자가 다음 프레임에 정리하도록 요청만 남기고 창은 아직 파괴하지 않는다.
+		bCloseRequested = true;
+		break;
+
 	case WM_DESTROY:
-		PostQuitMessage(0);
+		if (bQuitOnClose)
+			PostQuitMessage(0);
+		// 파괴 뒤에 오는 메시지가 해제된 FWindow를 가리키지 않게 연결을 끊는다.
+		SetWindowLongPtr(hWnd, GWLP_USERDATA, 0);
 		break;
 
 	case WM_SIZE:

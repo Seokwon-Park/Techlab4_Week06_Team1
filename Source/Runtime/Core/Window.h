@@ -20,6 +20,20 @@ public:
 	bool Create(HINSTANCE hInstance, int Width, int Height, const wchar_t* Title, bool bBorderless = false);
 	void Show();
 	void ProcessMessage(bool& bIsRunning);
+	// 메인 창이 아닌 창(PIE 창 등)을 직접 닫는다. 메인 창은 OS 종료 흐름을 따른다.
+	void Destroy();
+
+	// false면 닫기 버튼이 앱을 끝내지 않고 ConsumeCloseRequest로 요청만 남긴다.
+	void SetQuitOnClose(bool bValue) { bQuitOnClose = bValue; }
+	bool ConsumeCloseRequest()
+	{
+		const bool bResult = bCloseRequested;
+		bCloseRequested = false;
+		return bResult;
+	}
+	// false면 등록된 WndProc 훅(ImGui)을 거치지 않는다. ImGui 컨텍스트가 없는 창용이다.
+	void SetReceivesWndProcHook(bool bValue) { bReceivesWndProcHook = bValue; }
+	bool ReceivesWndProcHook() const { return bReceivesWndProcHook; }
 
 	HWND GetHandle() const { return hWnd;  }
 
@@ -41,6 +55,9 @@ public:
 private:
 	bool bIsResized = false;
 	bool bIsInSizeMove = false;
+	bool bQuitOnClose = true;
+	bool bCloseRequested = false;
+	bool bReceivesWndProcHook = true;
 
 	HWND hWnd = nullptr;
 

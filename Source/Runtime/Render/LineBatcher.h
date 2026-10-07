@@ -13,7 +13,8 @@ public:
 	FLineBatcher() = default;
 	~FLineBatcher();
 	bool Init(FRenderer* InRenderer, UWorld* InWorld);
-	void BuildVertexBuffer();
+	// InWorld에 속한 컴포넌트의 바운딩 박스만 쌓는다. 에디터·PIE 월드가 함께 살아 있을 수 있다.
+	void BuildVertexBuffer(const UWorld& InWorld);
 
 	void BeginFrame();
 
