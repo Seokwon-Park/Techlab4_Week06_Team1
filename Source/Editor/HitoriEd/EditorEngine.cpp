@@ -125,10 +125,9 @@ bool UEditorEngine::Init()
 
 	SettingsPanel = EditorUI->AddEditorPanel<FSettingsPanel>();
 
-	ToolbarPanel = EditorUI->AddEditorPanel<FToolbarPanel>();
-	ToolbarPanel->SetPlayCallback([this]() { RequestPlaySession(); });
-	ToolbarPanel->SetStopCallback([this]() { RequestEndPlayMap(); });
-	ToolbarPanel->SetIsPlayingQuery([this]() { return PlayWorld != nullptr; });
+	//ToolbarPanel->SetPlayCallback([this]() { RequestPlaySession(); });
+	//ToolbarPanel->SetStopCallback([this]() { RequestEndPlayMap(); });
+	//ToolbarPanel->SetIsPlayingQuery([this]() { return PlayWorld != nullptr; });
 
 	Outline = MakeUnique<FOutline>();
 
@@ -224,6 +223,40 @@ bool UEditorEngine::Init()
 	SkyboxRenderer = MakeUnique<FSkyboxRenderer>();
 	SkyboxRenderer->Init("Assets/SkySphere/Sky.jpg");
 
+	const ImVec4 White = { 1, 1, 1, 1 };
+	const ImVec4 Green = { 0.40f, 0.80f, 0.30f, 1.0f };
+
+	Save = { "Save",   "Save Current Scene",UAssetManager::GetAssetByPath<UTexture2D>("Assets/Icons/Toolbar/Save.png"),  White, { EKeyCode::S, true } };
+
+	Play = { "Play",   "Play World",        UAssetManager::GetAssetByPath<UTexture2D>("Assets/Icons/Toolbar/Play.png"),  Green, { EKeyCode::P, false, true } };
+
+	Play.CanExecute = [this]()->bool {return !PlayWorld; };
+	Play.Execute = [this]() { RequestPlaySession(); };
+
+	Pause = { "Pause",  "Pause",			UAssetManager::GetAssetByPath<UTexture2D>("Assets/Icons/Toolbar/Pause.png"), White, { EKeyCode::Pause } };
+
+	Pause.CanExecute = [this]()->bool {return !bIsPaused && PlayWorld; };
+	Pause.Execute = [this]() { bIsPaused = true; };
+
+
+	Resume = { "Resume", "Resume",          UAssetManager::GetAssetByPath<UTexture2D>("Assets/Icons/Toolbar/Play.png"),  White, { EKeyCode::Pause } };
+
+	Resume.CanExecute = [this]()->bool {return bIsPaused && PlayWorld; };
+	Resume.Execute = [this]() { bIsPaused = false; };
+
+	StepFrame = { "Step", "Step One Frame", UAssetManager::GetAssetByPath<UTexture2D>("Assets/Icons/Toolbar/Step.png"),  White, {} };
+
+	StepFrame.CanExecute = [this]()->bool {return bIsPaused && PlayWorld; };
+	StepFrame.Execute = [this]() { bStepRequested= true; };
+
+
+	Stop = { "Stop",   "Stop",				UAssetManager::GetAssetByPath<UTexture2D>("Assets/Icons/Toolbar/Stop.png"),  White, { EKeyCode::Escape } };
+
+	Stop.CanExecute = [this]()->bool {return PlayWorld; };
+	Stop.Execute = [this]() { RequestEndPlayMap(); };
+
+	EditorUI->GetToolbar()->SetCommands({ Play, Pause, Resume, StepFrame, Stop });
+
 	return true;
 }
 
@@ -258,7 +291,7 @@ void UEditorEngine::Tick(const float DeltaTime)
 	RenderMultipleViewports();
 	EndFrame();
 }
- 
+
 // DeltaTime을 패널에 전달하고 에디터 단축키를 처리한다.
 void UEditorEngine::BeginFrame(const float DeltaTime)
 {
@@ -324,9 +357,17 @@ void UEditorEngine::UpdateMultipleViewportState(const float DeltaTime)
 void UEditorEngine::TickWorldAndEditor(const float DeltaTime)
 {
 	// 월드 상태는 프레임마다 정확히 한 번 갱신하고 캡처한다.
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_WorldTick);
-		GetActiveWorld()->Tick(DeltaTime);
+		if (bStepRequested && bIsPaused)
+		{
+			GetActiveWorld()->Tick(1.0f / 60.0f);
+			bStepRequested = false;
+		}
+		else if(!bIsPaused)
+			GetActiveWorld()->Tick(DeltaTime);
+
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_EditorTick);
@@ -336,7 +377,12 @@ void UEditorEngine::TickWorldAndEditor(const float DeltaTime)
 		SCOPE_CYCLE_COUNTER(STAT_CaptureWorld);
 		MultipleViewportsAdapter.CaptureWorld(*GetActiveWorld());
 	}
-	UpdateGizmoAndPicking();
+	if (GetActiveWorld()->GetWorldType() == EWorldType::Editor || bIsPaused)
+	{
+		UpdateGizmoAndPicking();
+		//SCOPE_CYCLE_COUNTER(STAT_UpdateAllTransforms);
+		GetActiveWorld()->GetScene().UpdateAllTransforms();
+	}
 }
 
 // 공유 월드 캡처로 활성 View별 렌더 큐를 만들고 렌더한다.
@@ -363,7 +409,7 @@ void UEditorEngine::RenderMultipleViewports()
 			MultipleViewportsAdapter.GetEngineCameraForward(ViewIndex),
 			RenderQueue);
 
-		
+
 
 	}
 
@@ -449,19 +495,19 @@ void UEditorEngine::RenderOpaquePass(const int32 ViewIndex, const FRenderingInfo
 		RenderCommand::SetRasterizerState(ERasterizerState::SolidBack);
 	}
 
-	
+
 
 	RenderCommand::EndRenderPass(ViewRenderingInfo);
 }
 
-void UEditorEngine::RenderFogPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation,const FMatrix& ViewProjection, FRenderQueue& RenderQueue)
+void UEditorEngine::RenderFogPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation, const FMatrix& ViewProjection, FRenderQueue& RenderQueue)
 {
-	
+
 	const TArray<FExponentialHeightFogSceneInfo>& SceneFogInfos = GetActiveWorld()->GetScene().FogInfos;
 
 	if (SceneFogInfos.Num() == 0)
 		return;
-	
+
 	FRenderingInfo PassInfo = ViewRenderingInfo;
 
 	//Load는 기존 내용을 그대로 두고 그 위에 그림을 그린다는뜻
@@ -472,7 +518,7 @@ void UEditorEngine::RenderFogPass(const int32 ViewIndex, const FRenderingInfo& V
 	RenderCommand::BeginRenderPass(PassInfo);
 
 	FogRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, SceneFogInfos[0].FogInfo);
-	
+
 	//Fog는 여러개있더라도 1개의 Fog만 인식해서 그리도록 해야한다.
 
 	RenderCommand::EndRenderPass(PassInfo);
@@ -630,7 +676,7 @@ void UEditorEngine::RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& 
 	//장면 텍스처를 읽어서 임시 텍스처에 FXAA 결과를 그린다
 	RenderCommand::BeginRenderPass(PassInfo);
 	FXAARenderer->OnRender(SceneColor);
-	RenderCommand::EndRenderPass(PassInfo); 
+	RenderCommand::EndRenderPass(PassInfo);
 
 	// SceneColor가 SRV로 남아 있으면 Overlay 패스에서 RTV로 쓸 때 D3D가 강제로 해제하므로 먼저 비운다
 	RenderCommand::UnbindShaderResource(0, EShaderBindFlagBits::Pixel);
@@ -643,7 +689,7 @@ void UEditorEngine::RenderDepthPass(const int32 ViewIndex, const FRenderingInfo&
 	FRenderingInfo PassInfo = ViewRenderingInfo;
 
 	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
-		Color.LoadOp = ERenderTargetLoadOp::DontCare;  
+		Color.LoadOp = ERenderTargetLoadOp::DontCare;
 	PassInfo.DepthStencil.Texture = nullptr;
 
 	RenderCommand::BeginRenderPass(PassInfo);
@@ -695,7 +741,7 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 	// 1. 불투명 Pass
 	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
-	if(SettingsPanel->GetSettings().bDepthView)
+	if (SettingsPanel->GetSettings().bDepthView)
 	{
 		RenderDepthPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
 
@@ -781,6 +827,11 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext& PIEContext, UW
 	UWorld* NewPIEWorld = UWorld::GetDuplicatedWorldForPIE(InEditorWorld);
 	PIEContext.SetCurrentWorld(NewPIEWorld);
 	return NewPIEWorld;
+}
+
+void UEditorEngine::OnActiveWorldChanged()
+{
+	ResetSceneSelection();
 }
 
 void UEditorEngine::EndPlayMap()

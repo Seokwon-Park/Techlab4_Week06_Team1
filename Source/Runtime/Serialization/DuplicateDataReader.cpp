@@ -29,6 +29,7 @@ FArchive& FDuplicateDataReader::operator<<(UObject*& Object)
 	UObject* SourceObject = Object;
 	Serialize(&SourceObject, sizeof(UObject*));
 
+	// 복사가 필요한 개체인가?
 	FDuplicatedObject ObjectInfo = SourceObject ? DuplicatedObjectAnnotation.GetAnnotation(SourceObject) : FDuplicatedObject();
 	if (!ObjectInfo.IsDefault())
 	{
