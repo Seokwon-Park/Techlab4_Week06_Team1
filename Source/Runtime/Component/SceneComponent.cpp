@@ -28,9 +28,6 @@ void USceneComponent::PostEditChangeProperty(const FProperty& Property)
 	Super::PostEditChangeProperty(Property);
 	if (Property.Name == "Transform") 
 		MarkTransformDirty();
-
-
-
 }
 
 void USceneComponent::SetupAttachment(USceneComponent* InParent, EAttachmentRule Rule)
@@ -144,16 +141,22 @@ FVector USceneComponent::GetWorldScale3D() const
 
 FMatrix USceneComponent::GetWorldMatrix() const
 {
-	FMatrix LocalMatrix = Transform.GetLocalMatrix(); // 부모 컴포넌트 연결 없을 때
-
-	if (AttachParent)
+	if (!AttachParent)
 	{
-		return LocalMatrix * AttachParent->GetWorldMatrix();
+		return Transform.GetLocalMatrix();
 	}
 
-	return LocalMatrix;
-}
+	const FVector WorldLocation = 
+		AttachParent->GetWorldMatrix().TransformPosition(Transform.Location);
 
+	const FQuat WorldRotation = 
+		AttachParent->GetWorldRotation().Quaternion() * Transform.GetOrientation();
+
+	const FVector WorldScale =
+		Transform.Scale * AttachParent->GetWorldScale3D();
+
+	return FTransform(WorldRotation.ToFRotator(), WorldLocation, WorldScale).GetLocalMatrix();
+}
 
 void USceneComponent::SetWorldTransform(const FMatrix& InWorldMatrix, bool bSweep)
 {
