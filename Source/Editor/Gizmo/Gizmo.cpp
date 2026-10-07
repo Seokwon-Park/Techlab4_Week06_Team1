@@ -1,6 +1,7 @@
 #include "EnginePCH.h"
 #include "Editor/Gizmo/Gizmo.h"
 #include "Camera/CameraComponent.h"
+#include "GameFramework/Actor.h"
 
 static const FVector AxisDirs[3] = {
 	FVector(1, 0, 0),
@@ -328,8 +329,24 @@ FVector FGizmo::GetRenderLocation() const
 FVector FGizmo::GetRenderLocationForView(const FVector& CameraLocation, const bool bCameraOrthographic) const
 {
 	if (!Target) return FVector(0, 0, 0);
-	if (bCameraOrthographic) return GetLocation();
-	return (Target->GetWorldLocation() - CameraLocation).Normalized() * 10.0f + CameraLocation;
+
+	FVector PivotLocation = Target->GetWorldLocation();
+
+	// bounds 합집합 중앙에 기즈모 표시
+	/*if (bUseActorBounds)
+	{
+		FBox Bounds;
+		if (Target->GetOwner()->TryGetActorBounds(Bounds))
+		{
+			PivotLocation = (Bounds.Min + Bounds.Max) * 0.5f;
+			
+		}
+	}*/
+
+	if (bCameraOrthographic) return PivotLocation;
+
+	return (PivotLocation - CameraLocation).Normalized() * 10.0f + CameraLocation;
+
 }
 
 // 현재 입력 View의 카메라 위치를 반환한다.

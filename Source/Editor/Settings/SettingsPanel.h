@@ -18,6 +18,8 @@ struct FEditorSettings
 	bool bShowUUID = false;
 	bool bDrawBatchLine = true;
 	bool bDrawPSGrid = false;
+	bool bEnableFXAA = true;
+	bool bDepthView = false;
 
 	// Values
 	float CameraSpeed = 1.0f;

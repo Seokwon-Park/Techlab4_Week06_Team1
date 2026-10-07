@@ -12,6 +12,8 @@
 #include "Editor/Gizmo/GizmoRenderer.h"
 #include "Render/LineBatcher.h"
 #include "Render/FogRenderer.h"
+#include "Render/FXAARenderer.h"
+#include "Render/DepthViewRenderer.h"
 
 
 #include "Editor/EditorUI/EditorUI.h"
@@ -91,6 +93,12 @@ private:
 	void RenderFogPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FVector& ViewCameraLocation,const FMatrix& ViewProjection, FRenderQueue& RenderQueue);
 	//Overlay Pass
 	void RenderOverlayPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward, FRenderQueue& RenderQueue);
+	//FXAA Pass
+	void RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo);
+	//Depth Pass
+	void RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward);
+
+
 
 	FWorldContext& GetEditorWorldContext();
 	FWorldContext* GetPIEWorldContext(int32 WorldPIEInstance = 0);
@@ -113,6 +121,9 @@ private:
 	TUniquePtr<FOutline> Outline;
 	TUniquePtr<FOutlineRenderer> OutlineRenderer;
 	TUniquePtr<FSkyboxRenderer> SkyboxRenderer;
+	TUniquePtr<FFXAARenderer> FXAARenderer;
+	TUniquePtr<FDepthViewRenderer> DepthViewRenderer;
+
 
 	UFont* SystemFont;
 
@@ -131,8 +142,10 @@ private:
 	UWorld* EditorWorld = nullptr;
 	UWorld* PlayWorld = nullptr;
 
-	bool bPlaySessionRequested = true;
-	bool bRequestEndPlayMapQueued = true;
+	FVector UUIDLocation;
+
+	bool bPlaySessionRequested = false;
+	bool bRequestEndPlayMapQueued = false;
 
 	void ResetSceneSelection();
 

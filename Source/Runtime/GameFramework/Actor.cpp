@@ -292,12 +292,19 @@ UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
 		SceneComponent->SetupAttachment(RootComponent, EAttachmentRule::KeepRelative);        
 	}
 
-    NewComponent->SetOwner(this);
+    NewComponent->SetOwner(this);    
     Components.Add(NewComponent);
+    NewComponent->InitializeComponent();
 
-    if (UParticleSubUVComponent* ParticleSubUV = Cast<UParticleSubUVComponent>(NewComponent))
+    //if (UParticleSubUVComponent* ParticleSubUV = Cast<UParticleSubUVComponent>(NewComponent))
+    //{
+    //    ParticleSubUV->BeginPlay();
+    //    RegisterAllActorTickFunctions(true);
+    //}
+
+    if (World)
     {
-        ParticleSubUV->BeginPlay();
+        NewComponent->BeginPlay();
         RegisterAllActorTickFunctions(true);
     }
 
@@ -351,4 +358,29 @@ UActorComponent* AActor::FindComponentByName(FName Name) const
         if (Component && Component->GetFName() == Name)
             return Component;
     return nullptr;
+}
+
+bool AActor::TryGetActorBounds(FBox& OutBounds) const
+{
+    bool bHasBounds = false;
+
+    for (UActorComponent* Component : Components)
+    {
+        UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Component);
+        if (!Primitive)
+            continue;
+
+        FBox PrimitiveBounds = Primitive->CalcBounds();
+        if (bHasBounds)
+        {
+            OutBounds.Expand(PrimitiveBounds);
+        }
+        else
+        {
+            OutBounds = PrimitiveBounds;
+            bHasBounds = true;
+        }
+    }
+
+    return bHasBounds;
 }

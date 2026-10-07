@@ -106,6 +106,12 @@ bool UEditorEngine::Init()
 	FogRenderer = MakeUnique<FFogRenderer>();
 	FogRenderer->Init(Renderer);
 
+	FXAARenderer = MakeUnique<FFXAARenderer>();
+	FXAARenderer->Init();
+
+	DepthViewRenderer = MakeUnique<FDepthViewRenderer>();
+	DepthViewRenderer->Init();
+
 
 	// 필요한 Panel들 추가후 raw pointer 반환(소유권 = EditorUI)
 	DetailsPanel = EditorUI->AddEditorPanel<FDetailsPanel>();
@@ -156,7 +162,7 @@ bool UEditorEngine::Init()
 	OutlinerPanel->SetSelectionCallback(
 		[this](USceneComponent* Root)
 		{
-			Gizmo->SetTarget(Root);
+			Gizmo->SetTarget(Root, true);
 			DetailsPanel->SetTarget(Root ? Root->GetOwner() : nullptr);
 
 			UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Root);
@@ -170,7 +176,14 @@ bool UEditorEngine::Init()
 	DetailsPanel->SetSelectionCallback(
 		[this](USceneComponent* SceneComponent)
 		{
-			Gizmo->SetTarget(SceneComponent);
+			if (SceneComponent == SceneComponent->GetOwner()->GetRootComponent())
+			{
+				Gizmo->SetTarget(SceneComponent, true);
+			}
+			else
+			{
+				Gizmo->SetTarget(SceneComponent);
+			}
 		}
 	);
 
@@ -237,7 +250,7 @@ void UEditorEngine::Tick(const float DeltaTime)
 	RenderMultipleViewports();
 	EndFrame();
 }
-
+ 
 // DeltaTime을 패널에 전달하고 에디터 단축키를 처리한다.
 void UEditorEngine::BeginFrame(const float DeltaTime)
 {
@@ -469,7 +482,7 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 
 	RenderCommand::BeginRenderPass(PassInfo);
 
-	if (SettingsPanel->GetSettings().bDrawBatchLine)
+	if (SettingsPanel->GetSettings().bDrawBatchLine && !SettingsPanel->GetSettings().bDepthView)
 	{
 		// 라인 배처는 매 프레임 한 번만 비우고 한 번만 그린다.
 		// 바운딩박스는 그 안에 쌓이는 여러 항목 중 하나일 뿐이다.
@@ -566,19 +579,11 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 			if (!Actor)
 				continue;
 
-			UPrimitiveComponent* Primitive =
-				Cast<UPrimitiveComponent>(Actor->GetRootComponent());
-
-			if (!Primitive)
-				continue;
-
-			FBox Box =
-				Primitive->CalcBounds();
-
-			FVector UUIDLocation;
-			UUIDLocation.X = (Box.Min.X + Box.Max.X) * 0.5f;
-			UUIDLocation.Y = (Box.Min.Y + Box.Max.Y) * 0.5f;
-			UUIDLocation.Z = Box.Max.Z + 0.5f;
+			FBox ActorBounds;
+			Actor->TryGetActorBounds(ActorBounds);
+			UUIDLocation.X = (ActorBounds.Min.X + ActorBounds.Max.X) * 0.5f;
+			UUIDLocation.Y = (ActorBounds.Min.Y + ActorBounds.Max.Y) * 0.5f;
+			UUIDLocation.Z = ActorBounds.Max.Z + 0.5f;
 
 			FString Text =
 				"UUID : " + std::to_string(Actor->GetUUID());
@@ -594,6 +599,47 @@ void UEditorEngine::RenderOverlayPass(const int32 ViewIndex, const FRenderingInf
 		}
 	}
 
+	RenderCommand::EndRenderPass(PassInfo);
+}
+
+void UEditorEngine::RenderFXAAPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo)
+{
+	FTexture2D* SceneColor = ViewRenderingInfo.ColorRenderTargets[0].Texture;
+	FTexture2D* FxaaTarget = ViewportsPanel->GetFxaaTarget(ViewIndex);   // 뷰별 임시 텍스처
+	if (!SceneColor || !FxaaTarget)
+		return;
+
+	// 출력은 임시 텍스처, 깊이 없음, 어차피 전부 덮어쓰니 Clear 불필요
+	FRenderingInfo PassInfo;
+	PassInfo.ViewportSetting = ViewRenderingInfo.ViewportSetting;
+
+	FRenderingDesc ColorDesc{};
+	ColorDesc.Texture = FxaaTarget;
+	ColorDesc.LoadOp = ERenderTargetLoadOp::DontCare;
+	PassInfo.ColorRenderTargets.Add(ColorDesc);
+	PassInfo.DepthStencil.Texture = nullptr;
+
+	//장면 텍스처를 읽어서 임시 텍스처에 FXAA 결과를 그린다
+	RenderCommand::BeginRenderPass(PassInfo);
+	FXAARenderer->OnRender(SceneColor);
+	RenderCommand::EndRenderPass(PassInfo); 
+
+	// SceneColor가 SRV로 남아 있으면 Overlay 패스에서 RTV로 쓸 때 D3D가 강제로 해제하므로 먼저 비운다
+	RenderCommand::UnbindShaderResource(0, EShaderBindFlagBits::Pixel);
+
+	RenderCommand::CopyTexture(SceneColor, FxaaTarget);
+}
+
+void UEditorEngine::RenderDepthPass(const int32 ViewIndex, const FRenderingInfo& ViewRenderingInfo, const FMatrix& ViewProjection, const FVector& ViewCameraLocation, const FVector& ViewCameraForward)
+{
+	FRenderingInfo PassInfo = ViewRenderingInfo;
+
+	for (FRenderingDesc& Color : PassInfo.ColorRenderTargets)
+		Color.LoadOp = ERenderTargetLoadOp::DontCare;  
+	PassInfo.DepthStencil.Texture = nullptr;
+
+	RenderCommand::BeginRenderPass(PassInfo);
+	DepthViewRenderer->OnRender(ViewRenderingInfo.DepthStencil.Texture, ViewProjection, ViewCameraLocation, ViewCameraForward);
 	RenderCommand::EndRenderPass(PassInfo);
 }
 
@@ -641,13 +687,27 @@ void UEditorEngine::RenderFrame(const int32 ViewIndex, const FRenderingInfo& Vie
 	// 1. 불투명 Pass
 	RenderOpaquePass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
-	//직교인 경우 안개 Pass를 그리지 않는다.
-	if(!MultipleViewportsAdapter.IsOrthographic(ViewIndex))
-	// 2. 안개 Pass
-		RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+	if(SettingsPanel->GetSettings().bDepthView)
+	{
+		RenderDepthPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward);
 
 
-	// 3. 오버레이 Pass
+	}
+	else
+	{
+		//직교인 경우 안개 Pass를 그리지 않는다.
+		if (!MultipleViewportsAdapter.IsOrthographic(ViewIndex))
+			// 2. 안개 Pass
+			RenderFogPass(ViewIndex, ViewRenderingInfo, ViewCameraLocation, ViewProjection, RenderQueue);
+
+		// 3. FXAA Pass
+		if (SettingsPanel->GetSettings().bEnableFXAA)
+			RenderFXAAPass(ViewIndex, ViewRenderingInfo);
+	}
+
+
+
+	// 4. 오버레이 Pass
 	RenderOverlayPass(ViewIndex, ViewRenderingInfo, ViewProjection, ViewCameraLocation, ViewCameraForward, RenderQueue);
 
 
@@ -734,7 +794,7 @@ void UEditorEngine::EndPlayMap()
 // 씬 변경으로 무효화된 에디터의 선택 참조를 모두 해제한다.
 void UEditorEngine::ResetSceneSelection()
 {
-	Gizmo->SetTarget(nullptr);
+	Gizmo->SetTarget(nullptr, false);
 	Outline->SetTarget(nullptr);
 	DetailsPanel->SetTarget(nullptr);
 	OutlinerPanel->SelectActor(nullptr);
