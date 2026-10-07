@@ -41,11 +41,11 @@ public:
 	virtual void LeaveMapElement() override;
 
 	virtual void EnterAttributedValue() override;
-	//virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
 	virtual void EnterAttributedValueValue() override;
 	virtual void LeaveAttribute() override;
 	virtual void LeaveAttributedValue() override;
-	//virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving) override;
+	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving) override;
 
 	virtual bool TryEnterAttributedValueValue() override;
 

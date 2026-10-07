@@ -250,4 +250,28 @@ void USceneComponent::MarkTransformDirty()
 		Child->MarkTransformDirty();      // 부모가 움직이면 자식의 월드 행렬도 바뀐다
 }
 
+void USceneComponent::Serialize(FStructuredArchive::FRecord Record)
+{
+	Super::Serialize(Record);   // UActorComponent: Owner까지 처리됨
+
+	FArchive& Ar = Record.GetUnderlyingArchive();
+	if (Ar.HasAnyPortFlags(EPropertyPortFlags::PPF_Duplicate))
+	{
+		UObject* ParentObj = AttachParent;
+		Record << SA_VALUE("AttachParent", ParentObj);
+		AttachParent = static_cast<USceneComponent*>(ParentObj);
+
+		int32 Num = AttachChildren.Num();
+		FStructuredArchive::FArray ChildArray = Record.EnterArray("AttachChildren", Num);
+		if (Ar.IsLoading())
+			AttachChildren.SetNum(Num);
+		for (int32 i = 0; i < Num; ++i)
+		{
+			UObject* Obj = AttachChildren[i];
+			ChildArray.EnterElement() << Obj;
+			AttachChildren[i] = static_cast<USceneComponent*>(Obj);
+		}
+	}
+}
+
 

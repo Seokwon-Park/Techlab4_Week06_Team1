@@ -6,7 +6,7 @@ class FBinaryArchiveFormatter final :public FStructuredArchiveFormatter
 {
 public:
 	FBinaryArchiveFormatter(FArchive& InInner);
-	virtual ~FBinaryArchiveFormatter();
+	virtual ~FBinaryArchiveFormatter() = default;
 
 	virtual bool HasDocumentTree() const override;
 	virtual FArchive& GetUnderlyingArchive() override;
@@ -33,11 +33,11 @@ public:
 	virtual void LeaveMapElement() override;
 
 	virtual void EnterAttributedValue() override;
-	//virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
+	virtual void EnterAttribute(FArchiveFieldName AttributeName) override;
 	virtual void EnterAttributedValueValue() override;
 	virtual void LeaveAttribute() override;
 	virtual void LeaveAttributedValue() override;
-	//virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting) override;
+	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting) override;
 	virtual bool TryEnterAttributedValueValue() override;
 
 	virtual void Serialize(uint8& Value) override;

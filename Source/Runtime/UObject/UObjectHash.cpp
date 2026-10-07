@@ -27,8 +27,18 @@ void RegisterClass(UClass* Class)
 
 UClass* FindClass(const FString& Name)
 {
-	UClass** Found = GetClassMap().FindOrNull(Name);
+	UClass** Found = GetClassMap().Find(Name);
 	return Found ? *Found : nullptr;
+}
+
+UObject* FindObjectWithOuter(const UObject* outer, const UClass* Class, FName Name)
+{
+	for (UObject* Obj : GUObjectArray)
+	{
+		if (Obj && Obj->GetOuter() == outer && Obj->GetFName() == Name && Obj->GetClass() == Class)
+			return Obj;
+	}
+	return nullptr;
 }
 
 void GetObjectsOfClass(const UClass* ClassToLookFor, TArray<UObject*>& Results, bool bIsIncludeDerivedClass)

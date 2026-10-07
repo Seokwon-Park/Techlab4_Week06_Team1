@@ -313,7 +313,7 @@ void UAssetManager::RegisterAsset(const FString& Key, URenderAsset* Asset)
 
 UTexture2D* UAssetManager::LoadTexture(const FString& InPath, bool bGenerateMips)
 {
-	if (URenderAsset** Found = AssetMap.FindOrNull(InPath))
+	if (URenderAsset** Found = AssetMap.Find(InPath))
 	{
 		return Cast<UTexture2D>(*Found);
 	}

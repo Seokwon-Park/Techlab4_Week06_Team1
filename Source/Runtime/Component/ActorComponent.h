@@ -19,7 +19,10 @@ public:
 
 	virtual void InitializeComponent() {};
 	virtual void BeginPlay() {};
-	virtual void TickComponent(float DeltaTime) {};
+	virtual void TickComponent(float DeltaTime) 
+	{
+		HTR_LOG(Info, "TickComponent");
+	};
 
 	void SetOwner(AActor* InOwner) { Owner = InOwner; }
     AActor* GetOwner() const { return Owner; }
@@ -33,6 +36,9 @@ public:
 
 	virtual void SetActive(bool bNewActive);
 	bool IsActive() const { return bIsActive; }
+
+	using Super::Serialize;
+	virtual void Serialize(FStructuredArchive::FRecord Record);
 
 private:
 	AActor* Owner = nullptr;

@@ -171,6 +171,10 @@ void FJsonArchiveInputFormatter::EnterAttributedValue()
 {
 }
 
+void FJsonArchiveInputFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+}
+
 void FJsonArchiveInputFormatter::EnterAttributedValueValue()
 {
 }
@@ -181,6 +185,11 @@ void FJsonArchiveInputFormatter::LeaveAttribute()
 
 void FJsonArchiveInputFormatter::LeaveAttributedValue()
 {
+}
+
+bool FJsonArchiveInputFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSavin)
+{
+    return false;
 }
 
 bool FJsonArchiveInputFormatter::TryEnterAttributedValueValue()

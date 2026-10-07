@@ -125,6 +125,11 @@ bool UEditorEngine::Init()
 
 	SettingsPanel = EditorUI->AddEditorPanel<FSettingsPanel>();
 
+	ToolbarPanel = EditorUI->AddEditorPanel<FToolbarPanel>();
+	ToolbarPanel->SetPlayCallback([this]() { RequestPlaySession(); });
+	ToolbarPanel->SetStopCallback([this]() { RequestEndPlayMap(); });
+	ToolbarPanel->SetIsPlayingQuery([this]() { return PlayWorld != nullptr; });
+
 	Outline = MakeUnique<FOutline>();
 
 	SystemFont = UAssetManager::GetAssetByPath<UFont>("Assets/Fonts/Pretendard.json");
@@ -226,13 +231,34 @@ bool UEditorEngine::Init()
 // 입력·창 메시지는 FEngineLoop가 먼저 처리하고 Present는 호출 직후에 한다.
 void UEditorEngine::Tick(const float DeltaTime)
 {
+	if (bRequestEndPlayMapQueued) { bRequestEndPlayMapQueued = false; EndPlayMap(); }
+	if (bPlaySessionRequested) { bPlaySessionRequested = false; if (!PlayWorld) StartPlayInEditorSession(); }
+
 	BeginFrame(DeltaTime);
+	// 임시: 선택된 Actor를 복제해서 결과를 로그로 확인 (PIE 연결 후 삭제)
+	if (!ImGui::GetIO().WantTextInput && FInputSystem::IsKeyPressed(EKeyCode::F9))
+	{
+		UWorld* PIEWorld = UWorld::CreateWorld(EWorldType::PIE, false);
+		FObjectDuplicationParameters Params(EditorWorld, nullptr);
+		Params.DuplicationSeed.Add(EditorWorld, PIEWorld);
+		Params.DuplicationSeed.Add(EditorWorld->GetPersistentLevel(), PIEWorld->GetPersistentLevel());
+		Params.PortFlags = EPropertyPortFlags::PPF_DuplicateForPIE;
+		StaticDuplicateObjectEx(Params);
+
+		HTR_LOG(Info, "[DupTest] actors {} -> {}",
+			EditorWorld->GetPersistentLevel()->GetActors().Num(),
+			PIEWorld->GetPersistentLevel()->GetActors().Num());
+		for (AActor* A : PIEWorld->GetPersistentLevel()->GetActors())
+			HTR_LOG(Info, "[DupTest]   {} world={} level={} root owner ok={}",
+				A->GetName(), A->GetWorld() == PIEWorld, A->GetLevel() == PIEWorld->GetPersistentLevel(),
+				A->GetRootComponent() && A->GetRootComponent()->GetOwner() == A);
+	}
 	UpdateMultipleViewportState(DeltaTime);
 	TickWorldAndEditor(DeltaTime);
 	RenderMultipleViewports();
 	EndFrame();
 }
-
+ 
 // DeltaTime을 패널에 전달하고 에디터 단축키를 처리한다.
 void UEditorEngine::BeginFrame(const float DeltaTime)
 {
@@ -741,6 +767,36 @@ void UEditorEngine::DeleteComponent(UActorComponent* Component)
 	Outline->SetTarget(nullptr);
 	Component->GetOwner()->DestroyComponent(Component);
 }
+
+void UEditorEngine::StartPlayInEditorSession()
+{
+	FWorldContext& PIEContext = CreateNewWorldContext(EWorldType::PIE);
+	PlayWorld = CreatePIEWorldByDuplication(PIEContext, EditorWorld);
+
+	OnActiveWorldChanged();
+}
+
+UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext& PIEContext, UWorld* InEditorWorld)
+{
+	UWorld* NewPIEWorld = UWorld::GetDuplicatedWorldForPIE(InEditorWorld);
+	PIEContext.SetCurrentWorld(NewPIEWorld);
+	return NewPIEWorld;
+}
+
+void UEditorEngine::EndPlayMap()
+{
+	if (!PlayWorld)
+		return;
+
+	ResetSceneSelection();
+	PlayWorld->EndPlay();
+	PlayWorld->ClearWorld();
+	DestroyWorldContext(PlayWorld);
+	delete PlayWorld;
+	PlayWorld = nullptr;
+	OnActiveWorldChanged();
+}
+
 
 // 씬 변경으로 무효화된 에디터의 선택 참조를 모두 해제한다.
 void UEditorEngine::ResetSceneSelection()

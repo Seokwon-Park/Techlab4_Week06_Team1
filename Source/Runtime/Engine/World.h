@@ -103,7 +103,11 @@ public:
 	void RegisterFireBall(UFireBallComponent* FireBall);
 	void UnregisterFireBall(UFireBallComponent* FireBall);
 
-	UWorld* GetDuplicatedWorldForPIE(UWorld* InWorld);
+	static UWorld* GetDuplicatedWorldForPIE(UWorld* InWorld);
+
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+
+
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 private:

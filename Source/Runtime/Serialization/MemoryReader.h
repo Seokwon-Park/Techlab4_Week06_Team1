@@ -51,7 +51,7 @@ public:
 		: Bytes(InBytes)
 		, LimitSize(INT64_MAX)
 	{
-		bIsLoading = true;
+		SetIsLoading(true);
 	}
 
 	/** With this method it's possible to attach data behind some serialized data. */ 

@@ -110,6 +110,10 @@ void FJsonArchiveOutputFormatter::EnterAttributedValue()
 {
 }
 
+void FJsonArchiveOutputFormatter::EnterAttribute(FArchiveFieldName AttributeName)
+{
+}
+
 void FJsonArchiveOutputFormatter::EnterAttributedValueValue()
 {
 }
@@ -120,6 +124,11 @@ void FJsonArchiveOutputFormatter::LeaveAttribute()
 
 void FJsonArchiveOutputFormatter::LeaveAttributedValue()
 {
+}
+
+bool FJsonArchiveOutputFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving)
+{
+	return false;
 }
 
 bool FJsonArchiveOutputFormatter::TryEnterAttributedValueValue()

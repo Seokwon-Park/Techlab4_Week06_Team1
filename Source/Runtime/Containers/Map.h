@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <cassert>
 #include <unordered_map>
@@ -8,177 +8,109 @@
 #include <functional>
 
 
-template <typename T, typename V, typename Hash = std::hash<T>>
+template <typename InKeyType, typename InValueType, typename KeyFuncs = std::hash<InKeyType>>
 class TMap
 {
 public:
+	using KeyType = InKeyType;
+	using ValueType = InValueType;
+	//using SetAllocatorType = SetAllocator;
+	using KeyFuncsType = KeyFuncs;
+
+	using MapType = std::unordered_map<KeyType, ValueType, KeyFuncs>;
+
 	TMap() = default;
-	TMap(std::initializer_list<std::pair<const T, V>> initList) : mMap(initList) {}
+	TMap(std::initializer_list<std::pair<const KeyType, ValueType>> initList) : mMap(initList) {}
 
 	~TMap() = default;
 
-	typename std::unordered_map<T, V, Hash>::iterator begin();
-	typename std::unordered_map<T, V, Hash>::iterator end();
+	typename MapType::iterator begin() { return mMap.begin(); }
+	typename MapType::iterator end() { return mMap.end(); }
 
-	typename std::unordered_map<T, V, Hash>::const_iterator begin() const;
-	typename std::unordered_map<T, V, Hash>::const_iterator end() const;
+	typename MapType::const_iterator begin() const { return mMap.cbegin(); }
+	typename MapType::const_iterator end() const { return mMap.cend(); }
 
-	void Add(const T& key, const V& Value);
-	int32 Remove(const T& key);
-	
-	uint32 Num() const;
-	void Reset();
-	void Empty(int32 ExpectedNumElements = 0);
-	V* FindOrNull(const T& key);
-	const V* FindOrNull(const T& key) const;
+	void Add(const KeyType& Key, const ValueType& Value)
+	{
+		mMap[Key] = Value;
+	}
 
-	V* Find(const T& key);
-	const V* Find(const T& key) const;
+	int32 Remove(const KeyType& Key)
+	{
+		return static_cast<int32>(mMap.erase(Key));
+	}
 
-	bool Contains(const T& key) const;
-	bool IsEmpty() const;
-	void Reserve(int32 Capacity);
+	uint32 Num() const
+	{
+		return static_cast<uint32>(mMap.size());
+	}
 
-	V& operator[](const T& key);
-	const V& operator[](const T& key) const;
+	void Reset()
+	{
+		mMap.clear();
+	}
+
+	void Empty(int32 ExpectedNumElements = 0)
+	{
+		mMap.clear();
+		mMap.reserve(static_cast<size_t>(ExpectedNumElements));
+	}
+
+	ValueType* Find(const KeyType& Key)
+	{
+		auto Iter = mMap.find(Key);
+		return Iter == mMap.end() ? nullptr : &Iter->second;
+	}
+
+	const ValueType* Find(const KeyType& Key) const
+	{
+		auto Iter = mMap.find(Key);
+		return Iter == mMap.end() ? nullptr : &Iter->second;
+	}
+
+	// 키가 없으면 ValueType의 기본값을 복사해 돌려준다 (포인터 값이면 nullptr)
+	ValueType FindRef(const KeyType& Key) const
+	{
+		const ValueType* Found = Find(Key);
+		return Found ? *Found : ValueType();
+	}
+
+	bool Contains(const KeyType& Key) const
+	{
+		return mMap.find(Key) != mMap.end();
+	}
+
+	bool IsEmpty() const
+	{
+		return mMap.empty();
+	}
+
+	void Reserve(int32 Capacity)
+	{
+		mMap.reserve(static_cast<size_t>(Capacity));
+	}
+
+	bool RemoveAndCopyValue(const KeyType& Key, ValueType& OutRemovedValue)
+	{
+		ValueType* Value = Find(Key);
+		if (!Value)
+			return false;
+
+		OutRemovedValue = std::move(*Value);
+		Remove(Key);
+		return true;
+	}
+
+	ValueType& operator[](const KeyType& Key)
+	{
+		return mMap[Key];
+	}
+
+	const ValueType& operator[](const KeyType& Key) const
+	{
+		return mMap.at(Key);
+	}
 
 private:
-	std::unordered_map<T, V, Hash> mMap;
+	MapType mMap;
 };
-
-template <typename T, typename V, typename Hash>
-inline typename std::unordered_map<T, V, Hash>::iterator TMap<T, V, Hash>::begin()
-{
-	return mMap.begin();
-}
-
-template <typename T, typename V, typename Hash>
-inline typename std::unordered_map<T, V, Hash>::iterator TMap<T, V, Hash>::end()
-{
-	return mMap.end();
-}
-
-template <typename T, typename V, typename Hash>
-inline typename std::unordered_map<T, V, Hash>::const_iterator TMap<T, V, Hash>::begin() const
-{
-	return mMap.cbegin();
-}
-
-template <typename T, typename V, typename Hash>
-inline typename std::unordered_map<T, V, Hash>::const_iterator TMap<T, V, Hash>::end() const
-{
-	return mMap.cend();
-}
-
-template <typename T, typename V, typename Hash>
-inline void TMap<T, V, Hash>::Add(const T& key, const V& value)
-{
-	mMap[key] = value;
-}
-
-template <typename T, typename V, typename Hash>
-inline int32 TMap<T, V, Hash>::Remove(const T& key)
-{
-	return static_cast<int32>(mMap.erase(key));
-}
-
-template <typename T, typename V, typename Hash>
-inline uint32 TMap<T, V, Hash>::Num() const
-{
-	return static_cast<uint32>(mMap.size());
-}
-
-template <typename T, typename V, typename Hash>
-inline void TMap<T, V, Hash>::Reset()
-{
-	mMap.clear();
-}
-
-template <typename T, typename V, typename Hash>
-inline void TMap<T, V, Hash>::Empty(int32 capacity)
-{
-	mMap.clear();
-	mMap.reserve(static_cast<size_t>(capacity));
-}
-
-template <typename T, typename V, typename Hash>
-inline V* TMap<T, V, Hash>::FindOrNull(const T& key)
-{
-	auto iter = mMap.find(key);
-
-	if (iter == mMap.end())
-	{
-		return nullptr;
-	}
-
-	return &iter->second;
-}
-
-template <typename T, typename V, typename Hash>
-inline const V* TMap<T, V, Hash>::FindOrNull(const T& key) const
-{
-	auto iter = mMap.find(key);
-
-	if (iter == mMap.end())
-	{
-		return nullptr;
-	}
-
-	return &iter->second;
-}
-
-template <typename T, typename V, typename Hash>
-inline V* TMap<T, V, Hash>::Find(const T& key)
-{
-	auto iter = mMap.find(key);
-
-	if (iter == mMap.end())
-	{
-		return nullptr;
-	}
-
-	return &iter->second;
-}
-
-template <typename T, typename V, typename Hash>
-inline const V* TMap<T, V, Hash>::Find(const T& key) const
-{
-	auto iter = mMap.find(key);
-
-	if (iter == mMap.end())
-	{
-		return nullptr;
-	}
-
-	return &iter->second;
-}
-
-template <typename T, typename V, typename Hash>
-inline bool TMap<T, V, Hash>::Contains(const T& key) const
-{
-	return mMap.find(key) != mMap.end();
-}
-
-template <typename T, typename V, typename Hash>
-inline bool TMap<T, V, Hash>::IsEmpty() const
-{
-	return mMap.empty();
-}
-
-template <typename T, typename V, typename Hash>
-inline void TMap<T, V, Hash>::Reserve(int32 capacity)
-{
-	mMap.reserve(static_cast<size_t>(capacity));
-}
-
-template <typename T, typename V, typename Hash>
-inline V& TMap<T, V, Hash>::operator[](const T& key)
-{
-	return mMap[key];
-}
-
-template <typename T, typename V, typename Hash>
-inline const V& TMap<T, V, Hash>::operator[](const T& key) const
-{
-	return mMap.at(key);
-}

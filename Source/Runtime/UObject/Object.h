@@ -5,6 +5,7 @@
 #include "Core/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/UObjectGlobals.h"
 #include "Serialization/Archive.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/StructuredArchiveSlots.h"
@@ -12,6 +13,8 @@
 class UClass;
 struct FProperty;
 // Property Reflection
+
+#define INVALID_OBJECT ((UObject*)-1)
 
 #define REFLECT_START(ClassName) \
 public: \
@@ -43,11 +46,11 @@ public:                                                                 \
     using Super = SuperClassName;                                       \
     using ThisClass = ClassName;		                                \
     template <typename T = ClassName>                                   \
-    static UObject* InternalConstructInstance()                         \
-    {                                                                   \
-        if constexpr (std::is_abstract_v<T>) { return nullptr; }        \
-        else { return new T(); }                                        \
-    }                                                                   \
+	static UObject* InternalConstructInstance(void* Memory)				\
+	{																	\
+		if constexpr (std::is_abstract_v<T>) { return nullptr; }		\
+		else { return new (Memory) T(); }								\
+	}																	\
     static UClass* StaticClass()                                        \
     {                                                                   \
         static UClass c;                                                \
@@ -104,9 +107,10 @@ public:
 	inline bool HasAnyFlags(EObjectFlags FlagsToCheck) const { return HasFlag(Flags, FlagsToCheck); }
 	inline bool HasAllFlags(EObjectFlags FlagsToCheck) const { return (Flags & FlagsToCheck) == FlagsToCheck; }
 	inline EObjectFlags GetFlags() const { return Flags; }
+	EObjectFlags GetMaskedFlags(EObjectFlags Mask = EObjectFlags::RF_AllFlags) const{return EObjectFlags(GetFlags() & Mask);}
 
 	virtual void Serialize(json& Handle, bool bIsLoading);
-	virtual void Serialize(FArchive& Ar) {};
+	virtual void Serialize(FArchive& Ar);
 	virtual void Serialize(FStructuredArchive::FRecord Record);
 
 	virtual void PostEditChangeProperty(const FProperty& Property) {};
@@ -129,6 +133,20 @@ public:
 		free(Ptr);
 	}
 
+	void* operator new(uint64, void* Ptr) { return Ptr; }
+	void operator delete(void*, void*) {}
+
+	template <typename T>
+	T* CreateDefaultSubobject(FName SubobjectName)
+	{
+		T* Subobject = NewObject<T>(this, SubobjectName, EObjectFlags::RF_DefaultSubObject);
+		OnDefaultSubobjectCreated(Subobject);
+		return Subobject;
+	}
+
+	virtual void PostDuplicate(bool bDuplicateForPIE) {}
+protected:
+	virtual void OnDefaultSubobjectCreated(UObject* Subobject) {}
 private:
 	void SerializeScriptProperties(FStructuredArchive::FSlot Slot);
 
@@ -145,3 +163,8 @@ private:
 };
 
 extern TArray<UObject*> GUObjectArray;
+
+inline bool IsValid(const UObject* Test)
+{
+	return Test != nullptr;
+}

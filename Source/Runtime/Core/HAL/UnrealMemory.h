@@ -13,4 +13,10 @@ struct FMemory
 	static int32 Memcmp(const void* A, const void* B, uint64 Count) { return std::memcmp(A, B, static_cast<size_t>(Count)); }
 	static void* Memset(void* Dest, uint8 Value, uint64 Count) { return std::memset(Dest, Value, static_cast<size_t>(Count)); }
 	static void* Memzero(void* Dest, uint64 Count) { return std::memset(Dest, 0, static_cast<size_t>(Count)); }
+
+	static uint64 QuantizeSize(uint64 Count, uint32 Alignment = 16);
+
+	static void* Malloc(uint64 Count);
+	static void* Realloc(void* Original, uint64 Count);
+	static void Free(void* Original);
 };

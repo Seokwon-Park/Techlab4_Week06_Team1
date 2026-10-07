@@ -69,7 +69,7 @@ void FTextRenderer::BuildTextMesh(const FString& Text, float TextSize, const UFo
 
 	for (uint32 CP : CodePoints)
 	{
-		if (const FGlyphInfo* Glyph = Atlas.GlyphMap.FindOrNull(CP))
+		if (const FGlyphInfo* Glyph = Atlas.GlyphMap.Find(CP))
 		{
 			TotalWidth += Glyph->Advance * TextSize;
 		}
@@ -79,7 +79,7 @@ void FTextRenderer::BuildTextMesh(const FString& Text, float TextSize, const UFo
 
 	for (uint32 CP : CodePoints)          // 메시 생성 루프
 	{
-		const FGlyphInfo* Glyph = Atlas.GlyphMap.FindOrNull(CP);
+		const FGlyphInfo* Glyph = Atlas.GlyphMap.Find(CP);
 		if (!Glyph)
 		{
 			continue;
@@ -126,7 +126,7 @@ bool FTextRenderer::ComputeTextBounds(const FString& Text, float TextSize, const
 	float TotalWidth = 0.0f;
 	for (uint32 CP : CodePoints)
 	{
-		if (const FGlyphInfo* Glyph = Atlas.GlyphMap.FindOrNull(CP))
+		if (const FGlyphInfo* Glyph = Atlas.GlyphMap.Find(CP))
 		{
 			TotalWidth += Glyph->Advance * TextSize;
 		}
@@ -141,7 +141,7 @@ bool FTextRenderer::ComputeTextBounds(const FString& Text, float TextSize, const
 
 	for (uint32 CP : CodePoints)          // 메시 생성 루프
 	{
-		const FGlyphInfo* Glyph = Atlas.GlyphMap.FindOrNull(CP);
+		const FGlyphInfo* Glyph = Atlas.GlyphMap.Find(CP);
 		if (!Glyph)
 		{
 			continue;

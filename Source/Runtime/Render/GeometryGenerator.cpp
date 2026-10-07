@@ -468,7 +468,7 @@ TUniquePtr<FStaticMeshData> FGeometryGenerator::CreateSphere(float Radius, uint3
 
 FStaticMeshData* FGeometryGenerator::GetMeshData(const FString& InName)
 {
-	TUniquePtr<FStaticMeshData>* MeshData = MeshDataMap.FindOrNull(InName);
+	TUniquePtr<FStaticMeshData>* MeshData = MeshDataMap.Find(InName);
 	if (MeshData)
 	{
 		return (*MeshData).get();

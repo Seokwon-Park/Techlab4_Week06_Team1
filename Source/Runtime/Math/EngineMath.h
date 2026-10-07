@@ -18,6 +18,24 @@ namespace FMath
 {
 	//static float PI = std::acosf(-1);
 
+	template <typename T>
+	static inline T Min(T A, T B)
+	{
+		return (A >= B ? B : A);
+	}
+
+	template <typename T>
+	static inline T Max(T A, T B)
+	{
+		return (A >= B ? A: B);
+	}
+
+	template <typename T>
+	static inline T Clamp(T InValue, T InMin, T InMax)
+	{
+		return Max(InMin, Min(InValue, InMax));
+	}
+
 	static inline bool IsNearlyZero(float Value, float ErrorTolerance = 1e-20f)
 	{
 		return std::abs(Value) <= ErrorTolerance;
@@ -28,19 +46,19 @@ namespace FMath
 		return std::abs(Value1 - Value2) <= ErrorTolerance;
 	}
 
-	static inline float Clamp(float Value, float Min, float Max)
-	{
-		if (Value < Min) return Min;
-		if (Value > Max) return Max;
-		return Value;
-	}
+	//static inline float Clamp(float Value, float Min, float Max)
+	//{
+	//	if (Value < Min) return Min;
+	//	if (Value > Max) return Max;
+	//	return Value;
+	//}
 
-	static inline uint32 Clamp(uint32 Value, uint32 Min, uint32 Max)
-	{
-		if (Value < Min) return Min;
-		if (Value > Max) return Max;
-		return Value;
-	}
+	//static inline uint32 Clamp(uint32 Value, uint32 Min, uint32 Max)
+	//{
+	//	if (Value < Min) return Min;
+	//	if (Value > Max) return Max;
+	//	return Value;
+	//}
 
 
 	static inline float RadiansToDegrees(float Radian)

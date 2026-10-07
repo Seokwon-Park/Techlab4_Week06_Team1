@@ -84,6 +84,8 @@ public:
 	void MarkTransformDirty();
 	virtual void OnTransformDirty() {};
 
+	using Super::Serialize;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 public:
 	FVector ComponentVelocity;
 
