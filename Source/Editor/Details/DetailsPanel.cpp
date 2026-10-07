@@ -1031,8 +1031,8 @@ void FDetailsPanel::DrawSceneComponentNode(USceneComponent* Component, USceneCom
 void FDetailsPanel::TryReparent(USceneComponent* DroppedComponent, USceneComponent* DragComponent)
 {
 	if (DroppedComponent != nullptr 
-		|| DroppedComponent->GetAttachParent() != DragComponent
-		|| DroppedComponent != DragComponent)
+		&& DroppedComponent->GetAttachParent() != DragComponent
+		&& DroppedComponent != DragComponent)
 	{
 		DroppedComponent->SetupAttachment(DragComponent, EAttachmentRule::KeepWorld);
 	}

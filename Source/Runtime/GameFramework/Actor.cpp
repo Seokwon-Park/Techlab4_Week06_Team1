@@ -240,7 +240,8 @@ bool AActor::Destroy()
 
 UActorComponent* AActor::AddComponent(UClass* ComponentClass, FName Name)
 {
-    if (!ComponentClass || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
+    if (!ComponentClass 
+        || !ComponentClass->IsChildOf(UActorComponent::StaticClass()))
     {
         return nullptr;
     }

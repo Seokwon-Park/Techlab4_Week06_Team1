@@ -19,6 +19,7 @@
 //class ACameraActor;
 class ULevel;
 class UBillboardComponent;
+class UFireBallComponent;
 
 struct FLODViewContext;
 
@@ -99,6 +100,8 @@ public:
 	bool IsPlayInEditor() const { return WorldType == EWorldType::PIE; }
 
 	void UpdateFireBallLight(FRenderer* Renderer);
+	void RegisterFireBall(UFireBallComponent* FireBall);
+	void UnregisterFireBall(UFireBallComponent* FireBall);
 
 	UWorld* GetDuplicatedWorldForPIE(UWorld* InWorld);
 	using Super::Serialize;
@@ -142,4 +145,5 @@ private:
 
 	FRenderStats RenderStats;
 
+	TArray<UFireBallComponent*> FireBallComponents;
 };

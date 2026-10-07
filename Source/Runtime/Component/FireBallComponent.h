@@ -1,9 +1,9 @@
 #pragma once
-#include "PrimitiveComponent.h"
+#include "SceneComponent.h"
 
-class UFireBallComponent : public UPrimitiveComponent
+class UFireBallComponent : public USceneComponent
 {
-	DECLARE_CLASS(UFireBallComponent, UPrimitiveComponent)
+	DECLARE_CLASS(UFireBallComponent, USceneComponent)
 
 	REFLECT_START(ClassName)
 		PROPERTY(Intensity)
@@ -14,7 +14,8 @@ class UFireBallComponent : public UPrimitiveComponent
 
 public:
 	UFireBallComponent() = default;
-	virtual ~UFireBallComponent() = default;
+	virtual ~UFireBallComponent() override;
+	void InitializeComponent();
 
 	float GetIntensity() const { return Intensity; }
 	float GetRadius() const { return Radius; }

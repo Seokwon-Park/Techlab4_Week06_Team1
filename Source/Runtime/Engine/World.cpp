@@ -14,8 +14,8 @@
 #include "Collision/Ray.h"
 #include "Component/BillboardComponent.h"
 #include "Component/ExponentialHeightFogComponent.h"
-
 #include "Component/FireBallComponent.h"
+
 #include "Component/StaticMeshComponent.h"
 #include "Asset/LOD/StaticMeshLODSelector.h"
 
@@ -715,18 +715,12 @@ void UWorld::UpdateFireBallLight(FRenderer* Renderer)
 	Data.ColorIntensity = FVector4(0, 0, 0, 0);
 	Data.FalloffEnabled = FVector4(1, 0, 0, 0);
 
-	for (FPrimitiveSceneProxy* Proxy : Scene.Proxies)
+	for (UFireBallComponent* FireBall : FireBallComponents)
 	{
 		if (Constants.LightCount >= MaxFireBalls)
 		{
 			break; // 최대 FireBall 수를 초과하면 루프 종료
 		}
-
-		if (!Proxy)
-			continue;
-
-		UPrimitiveComponent* Primitive = Proxy->GetComponent();
-		UFireBallComponent* FireBall = Cast<UFireBallComponent>(Primitive);
 
 		if (!FireBall)
 			continue;
@@ -760,6 +754,30 @@ void UWorld::UpdateFireBallLight(FRenderer* Renderer)
 	}
 
 	Renderer->SetFireBallLight(Constants);
+}
+
+void UWorld::RegisterFireBall(UFireBallComponent* FireBall)
+{
+	if (!FireBall)
+		return;
+
+	for (UFireBallComponent* Existing : FireBallComponents)
+	{
+		if (Existing == FireBall)
+			return;
+	}
+	FireBallComponents.Add(FireBall);
+}
+void UWorld::UnregisterFireBall(UFireBallComponent* FireBall)
+{
+	for (uint32 i = 0; i < FireBallComponents.Num(); ++i)
+	{
+		if (FireBallComponents[i] == FireBall)
+		{
+			FireBallComponents.RemoveAt(i, 1);
+			return;
+		}
+	}
 }
 
 UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld * InWorld)

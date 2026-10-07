@@ -91,8 +91,8 @@ float4 mainPS(PS_INPUT input) : SV_TARGET
         float distance = length(PositionRadius.xyz - input.worldPos);
         float radius = max(PositionRadius.w, 0.001f);
         
-        float falloff = saturate(1.0f - distance / radius);
-        falloff = pow(falloff, max(FalloffEnabled.x, 0.001f));
+        float Basefalloff = saturate(1.0f - distance / radius);
+        float falloff = pow(Basefalloff, max(FalloffEnabled.x, 0.001f));
         
         float enabled = FalloffEnabled.y;
         float intensity = ColorIntensity.w;
