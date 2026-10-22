@@ -792,7 +792,43 @@ void UWorld::Serialize(FStructuredArchive::FRecord Record)
 	// MainCamera->GetCameraComponent()->Serialize(Record.EnterRecord("MainCamera"));
 }
 
-bool UWorld::SweepSingleByShape(FHitResult& OutHit, const FVector& Start, const FVector& End, const FQuat& Rot, const FCollisionShape& CollisionShape) const
+bool UWorld::SweepSingleByShape(FHitResult& OutHit, const FVector& Start, const FVector& End, const FQuat& Rot, const FCollisionShape& CollisionShape, const AActor* IgnoreActor = nullptr) const
 {
+	// Init OutHit
+	OutHit = FHitResult();
+	OutHit.Time = 1.0f;
+	OutHit.bBlockingHit = false;
+
+	const FVector Delta = End - Start;
+	const float DeltaLength = Delta.Size();
+
+	if (DeltaLength < KINDA_SMALL_NUMBER)
+	{
+		return false;
+	}
+
+	const FVector SweepDir = Delta / DeltaLength;
+	const FRay SweepRay{ Start, SweepDir };
+
+	const ULevel* Level = CurrentLevel ? CurrentLevel : PersistentLevel;
+	if (!Level)
+	{
+		return false;
+	} 
+
+	float ClosetDistance = DeltaLength;
+	bool bFoundHit = false;
+
+	// Check all Actors
+	for (AActor* Actor : Level->GetActors())
+	{
+		if (Actor == nullptr || Actor == IgnoreActor)
+		{
+			continue;
+		}
+
+
+	}
+
 	return false;
 }

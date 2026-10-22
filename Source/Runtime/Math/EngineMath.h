@@ -51,5 +51,5 @@ namespace FMath
 	static inline float DegreesToRadians(float Degree)
 	{
 		return Degree * (PI / 180.0f);
-	}
+	}	
 }

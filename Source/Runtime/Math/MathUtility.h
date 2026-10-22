@@ -17,4 +17,5 @@ struct FVector;
 struct FMathUtil
 {
 	static bool LineExtentBoxIntersection(const FBox& InBox, const FVector& Start, const FVector& End, const FVector& Extent, FVector& HitLocation, FVector& HitNormal, float& HitTime);
+	static bool LineSphereIntersection(const FVector& Start, const FVector& Dir, float Length, const FVector& Origin, float Radius);
 };

@@ -106,7 +106,7 @@ public:
 	using Super::Serialize;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 
-	bool SweepSingleByShape(FHitResult& OutHit, const FVector& Start, const FVector& End, const FQuat& Rot, const FCollisionShape& CollisionShape)const;
+	bool SweepSingleByShape(FHitResult& OutHit, const FVector& Start, const FVector& End, const FQuat& Rot, const FCollisionShape& CollisionShape, const AActor* IgnoreActor = nullptr) const;
 
 private:
 	EWorldType WorldType = EWorldType::None;
